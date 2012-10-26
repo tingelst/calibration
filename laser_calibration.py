@@ -21,6 +21,10 @@ class LaserCalibration(object):
             return rvec, tvec
 
 
+    def get_homography(self, object_points, image_points):
+        homography, mask = cv2.findHomography(image_points, object_points)
+
+
 if __name__ == '__main__':
     cm = np.load('camera_matrix.npy')
     dc = np.load('dist_coeffs.npy')
