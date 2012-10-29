@@ -3,6 +3,8 @@ import numpy as np
 import pylab
 import socket
 import struct
+
+import time
  
 
 blue = (255,0,0)
@@ -57,7 +59,7 @@ class LaserCalibration(object):
 #        cv2.setMouseCallback(self.win_name, self._on_mouse)
 
         
-    def on_click(self,event):
+    def on_click(self, event):
         if len(self.img_pts) < 4:
             if event.button == 2:
                 self.img_pts.append([event.xdata, event.ydata])
@@ -76,6 +78,8 @@ class LaserCalibration(object):
         rec = np.array(self.linescan_struct.unpack(received))
         self.line1.set_data(self.x_range, rec)
         self.manager.canvas.draw()
+
+        
             
     
 #    def _on_mouse(self, event, x, y, flags, param):
