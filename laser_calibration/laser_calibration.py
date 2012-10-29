@@ -30,7 +30,6 @@ class LaserCalibration(object):
         
         self.HOST = "localhost"
         self.PORT = 8888
-
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         
         self.linescan_struct = struct.Struct(2048*'H')
@@ -40,15 +39,10 @@ class LaserCalibration(object):
         self.ax.grid(True)
         self.ax.set_title('Laser calibration')
         self.ax.axis([0, 2048, 1088, 0])
-
         self.x_range = pylab.arange(0, 2048, 1)
         self.line1, = self.ax.plot(2048, 1088)
-
         self.manager = pylab.get_current_fig_manager()
-        self.toolbar = self.manager.toolbar
-        
         self.cid = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
-        
         self.timer = self.fig.canvas.new_timer(interval=20)
         self.timer.add_callback(self.real_time_plotter, ())
         self.timer.start()
