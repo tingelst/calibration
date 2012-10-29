@@ -1,5 +1,9 @@
 import cv2
 import numpy as np
+import pylab
+import socket
+import struct
+ 
 
 blue = (255,0,0)
 green = (0,255,0)
@@ -7,11 +11,14 @@ red = (0,0,255)
 white = (255,255,255)
 
 class LaserCalibration(object):
+    
 
-    def __init__(self, camera_matrix, dist_coeffs):
+    def __init__(self, camera_matrix, dist_coeffs, save_path):
         self.cm = camera_matrix
         self.dc = dist_coeffs
         self.homography = None
+        
+        self.save_path = save_path
         
         self.obj_pts = [[0.045, 0.050], [0.015, 0.090], 
                         [-0.015, 0.090], [-0.045, 0.050]]
@@ -21,38 +28,73 @@ class LaserCalibration(object):
         self.samples = []
         self.calibrated = False
         
-        self.win_name = 'Laser calibration'
-        cv2.namedWindow(self.win_name)
-        cv2.setMouseCallback(self.win_name, self._on_mouse)
+        self.HOST = "localhost"
+        self.PORT = 8888
 
-    def _on_mouse(self, event, x, y, flags, param):
-        x, y = np.int16([x, y])
-        if event == cv2.EVENT_LBUTTONDOWN:
-            cv2.circle(self.img_col, (int(x), int(y)), 15, red, 2)
-            self.img_pts.append([x,y])
-            
-    def _img_from_scanline(self, scan_line):
-        img = np.zeros((1088, 2048), np.uint8)
-        for i in range(len(scan_line)):
-            img[scan_line[i], i] = 255
-        return img
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         
-    def add_sample(self, scan_line, undistort=False):
-        img = self._img_from_scanline(scan_line)
-        if undistort:
-            sample = cv2.undistort(img, self.cm, self.dc)
+        self.linescan_struct = struct.Struct(2048*'H')
+        
+        self.fig = pylab.figure(1)
+        self.ax = self.fig.add_subplot(111)
+        self.ax.grid(True)
+        self.ax.set_title('Laser calibration')
+        self.ax.axis([0, 2048, 1088, 0])
+
+        self.x_range = pylab.arange(0, 2048, 1)
+        self.line1, = self.ax.plot(2048, 1088)
+
+        self.manager = pylab.get_current_fig_manager()
+        self.toolbar = self.manager.toolbar
+        
+        self.cid = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
+        
+        self.timer = self.fig.canvas.new_timer(interval=20)
+        self.timer.add_callback(self.real_time_plotter, ())
+        self.timer.start()
+        
+        print('Laser calibration')
+        print('Press MBM to add point, press RBM to calibrate and save calibration')
+
+        pylab.show()
+         
+#        self.win_name = 'Laser calibration'
+#        cv2.namedWindow(self.win_name)
+#        cv2.setMouseCallback(self.win_name, self._on_mouse)
+
+        
+    def on_click(self,event):
+        if len(self.img_pts) < 4:
+            if event.button == 2:
+                self.img_pts.append([event.xdata, event.ydata])
+                print('Added point: {x},{y}'.format(x=event.xdata, y=event.ydata))
         else:
-            sample = img
-        self.img_col = cv2.cvtColor(sample, cv2.cv.CV_GRAY2BGR)
-        while True:
-            cv2.imshow(self.win_name, self.img_col)
-            c = cv2.waitKey(30)
-            if len(self.img_pts) == 4:
-                cv2.imshow(self.win_name, self.img_col)
-                cv2.waitKey()
-                break
-            if c == 27:  # ESC
-                break
+            if event.button == 3:
+                self.calibrate_laser()
+                self.save_laser_calibration()
+            if event.button == 2:
+                print('All image points added')
+            
+                    
+    def real_time_plotter(self, arg):
+        self.sock.sendto(" ", (self.HOST, self.PORT))
+        received = self.sock.recv(4096)
+        rec = np.array(self.linescan_struct.unpack(received))
+        self.line1.set_data(self.x_range, rec)
+        self.manager.canvas.draw()
+            
+    
+#    def _on_mouse(self, event, x, y, flags, param):
+#        x, y = np.int16([x, y])
+#        if event == cv2.EVENT_LBUTTONDOWN:
+#            cv2.circle(self.img_col, (int(x), int(y)), 15, red, 2)
+#            self.img_pts.append([x,y])
+            
+#    def _img_from_scanline(self, scan_line):
+#        img = np.zeros((1088, 2048), np.uint8)
+#        for i in range(len(scan_line)):
+#            img[scan_line[i], i] = 255
+#        return img
 
     def get_pose(self, object_points, image_points, ransac=False):
         if ransac:
@@ -77,10 +119,10 @@ class LaserCalibration(object):
         print(self.homography)
         self.calibrated = True        
     
-    def save_laser_calibration(self, path):
+    def save_laser_calibration(self):
         if self.calibrated:
-            np.save('{path}/homography.npy'.format(path=path), self.homography)
-            print('Saved calibration to path: {path}'.format(path=path))
+            np.save('{path}/homography.npy'.format(path=self.save_path), self.homography)
+            print('Saved calibration to path: {path}'.format(path=self.save_path))
         else:
             print('Laser is not calibrated!')
 
@@ -88,12 +130,9 @@ class LaserCalibration(object):
 if __name__ == '__main__':
     cm = np.load('../params/camera_matrix.npy')
     dc = np.load('../params/distortion_coefficients.npy')
-    scan_line = np.load('../params/calibobj.npy')
+    scan_line = np.load('../test/calibobj.npy')
 
-    lc = LaserCalibration(cm, dc)
-    lc.add_sample(scan_line)
-    lc.calibrate_laser()
-    lc.save_laser_calibration('../params')
+    lc = LaserCalibration(cm, dc, '../params')
 
     
     
