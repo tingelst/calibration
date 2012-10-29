@@ -1,10 +1,7 @@
 import cv2
 import numpy as np
 
-blue = (255,0,0)
-green = (0,255,0)
-red = (0,0,255)
-white = (255,255,255)
+
 
 class CameraCalibration(object):
 
@@ -65,34 +62,49 @@ class CameraCalibration(object):
     def add_sample(self, image, debug=False):
         if not self._image_size:
             self._image_size = image.shape[:2]
-        found, corners = self.get_chessboard_corners(image, self.pattern_size)
+        found, corners = self.get_chessboard_corners(image, self._pattern_size)
         if found:
             self._image_points.append(corners.reshape(-1,2))
             self._object_points.append(self.create_pattern_points())
             if debug:
                 color_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
                 cv2.drawChessboardCorners(color_image, self._pattern_size, corners, found)
+                cv2.imshow('DEBUG', color_image)
+                cv2.waitKey()                
         else:
+            cv2.imshow('', image)
+            cv2.waitKey()
             print('Chessboard not found')
+        return found
 
     def calibrate_camera(self):
          calibration = cv2.calibrateCamera(self._object_points, self._image_points, self._image_size)
          ret, self._cm, self._dc, self._rvecs, self._tvecs = calibration
+         self.calibrated = True
+         print('Calibration finished, RMS: {RMS}'.format(RMS=ret))
 
-    def save_camera_calibration(self):
+    def save_camera_calibration(self, path):
         if self.calibrated:
-            np.save('camera_matrix.npy', self._cm)
-            np.save('distortion_coefficients.npy', self._dc)
-            np.save('rvecs.npy', self._rvecs)
-            np.save('tvecs.npy', self._tvecs)
+            np.save('{path}/camera_matrix.npy'.format(path=path), self._cm)
+            np.save('{path}/distortion_coefficients.npy'.format(path=path), self._dc)
+            np.save('{path}/rvecs.npy'.format(path=path), self._rvecs)
+            np.save('{path}/tvecs.npy'.format(path=path), self._tvecs)
+            print('Saved calibration to path: {path}'.format(path=path))
         else:
             print('The camera is not calibrated')
 
-
-
-
-
-
 if __name__ == '__main__':
-    cc = CameraCalibration()
-    print(cc.blue)
+    from glob import glob
+    img_mask = '../test/chess*.tif'
+    img_names = glob(img_mask)
+    cc = CameraCalibration((13,13), 0.005)
+    for name in img_names:
+        frame = cv2.imread(name, 0)
+        if cc.add_sample(frame, True):    
+            print('Added sample: {name}'.format(name=name))
+        else:
+            print('Sample was not added')
+    cc.calibrate_camera()
+    cc.save_camera_calibration(path='../params')
+    
+    
