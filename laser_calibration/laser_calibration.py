@@ -19,11 +19,15 @@ class LaserCalibration(object):
         self.cm = camera_matrix
         self.dc = dist_coeffs
         self.homography = None
+        self.rvec = None
+        self.tvec = None
         
         self.save_path = save_path
         
         self.obj_pts = [[0.045, 0.050], [0.015, 0.090], 
                         [-0.015, 0.090], [-0.045, 0.050]]
+        self.obj_pts_3d = [[0.045, 0.0, 0.050], [0.015, 0.0, 0.090], 
+                        [-0.015, 0.0, 0.090], [-0.045, 0.0, 0.050]]
                            
         self.img_pts = []
         self.img_col = None
@@ -43,6 +47,7 @@ class LaserCalibration(object):
         self.ax.axis([0, 2048, 1088, 0])
         self.x_range = pylab.arange(0, 2048, 1)
         self.line1, = self.ax.plot(2048, 1088)
+        self.line2, = self.ax.plot(2048, 1088)
         self.manager = pylab.get_current_fig_manager()
         self.cid = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
         self.timer = self.fig.canvas.new_timer(interval=20)
@@ -57,7 +62,6 @@ class LaserCalibration(object):
 #        self.win_name = 'Laser calibration'
 #        cv2.namedWindow(self.win_name)
 #        cv2.setMouseCallback(self.win_name, self._on_mouse)
-
         
     def on_click(self, event):
         if len(self.img_pts) < 4:
@@ -71,39 +75,44 @@ class LaserCalibration(object):
             if event.button == 2:
                 print('All image points added')
             
-                    
     def real_time_plotter(self, arg):
         self.sock.sendto(" ", (self.HOST, self.PORT))
         received = self.sock.recv(4096)
         rec = np.array(self.linescan_struct.unpack(received))
-        self.line1.set_data(self.x_range, rec)
+#        xarr, yarr = self.undistort_points(rec)
+        self.line1.set_data(self.x_range, rec)  # Plot raw pixels
+#        self.line2.set_data(xarr, yarr)  # Plot undistorted pixels
         self.manager.canvas.draw()
 
-        
-            
-    
-#    def _on_mouse(self, event, x, y, flags, param):
-#        x, y = np.int16([x, y])
-#        if event == cv2.EVENT_LBUTTONDOWN:
-#            cv2.circle(self.img_col, (int(x), int(y)), 15, red, 2)
-#            self.img_pts.append([x,y])
-            
-#    def _img_from_scanline(self, scan_line):
-#        img = np.zeros((1088, 2048), np.uint8)
-#        for i in range(len(scan_line)):
-#            img[scan_line[i], i] = 255
-#        return img
-
     def get_pose(self, object_points, image_points, ransac=False):
+        ip = np.array(image_points, np.float32)
+        op = np.array(object_points, np.float32)
+#        op_3d = np.array([o + [0.0] for o in object_points], np.float32)
+#        flag = cv2.CV_P3P
+        flag = cv2.CV_ITERATIVE
         if ransac:
-            rvec, tvec = cv2.solvePnPRansac(object_points, image_points,
-                                            self.cm, self.dc)
+            rvec, tvec, inliers = cv2.solvePnPRansac(op, ip, self.cm, self.dc, flags=flag)
             return rvec, tvec
         else:
-            ret, rvec, tvec = cv2.solvePnP(object_points, image_points,
-                                           self.cm, self.dc)
+            ret, rvec, tvec = cv2.solvePnP(op, ip, self.cm, self.dc, flags=flag)
             return rvec, tvec
-
+            
+    def undistort_points(self, scanline):
+        length = len(scanline)
+        # Create temp array
+        temp = np.zeros((length,1,2), dtype=np.float32)
+        # Copy scanline into temp array
+        for i in range(length):
+            temp[i][0][0] = i
+            temp[i][0][1] = scanline[i]
+        # Undistort and reproject points to pixel values by setting
+        # P = camera_matrix
+        ud = cv2.undistortPoints(temp, self.cm, self.dc, P=self.cm)
+        # Resize array to shape (-1, 2)
+        ud.resize((length,2))
+        # Split array columnwise
+        x, y = np.hsplit(ud, 2)
+        return x, y
 
     def get_homography(self, object_points, image_points):
         ip = np.array(image_points, np.float32)
@@ -112,14 +121,24 @@ class LaserCalibration(object):
         return homography, mask
         
     def calibrate_laser(self):
-        h, m = self.get_homography(self.obj_pts, self.img_pts)
-        self.homography = h
+        self.homography, m = self.get_homography(self.obj_pts, self.img_pts)
+        self.rvec, self.tvec = self.get_pose(self.obj_pts_3d, self.img_pts, ransac=False)
+        print('Homography')
         print(self.homography)
+        print('Rotation vector')
+        print(self.rvec)
+        print('Translation vector')
+        print(self.tvec)
         self.calibrated = True        
     
     def save_laser_calibration(self):
         if self.calibrated:
-            np.save('{path}/homography.npy'.format(path=self.save_path), self.homography)
+            np.save('{path}/homography.npy'.format(path=self.save_path),
+                self.homography)
+            np.save('{path}/rvec_laser_calib_obj.npy'.format(path=self.save_path),
+                self.homography)
+            np.save('{path}/tvec_laser_calib_obj.npy'.format(path=self.save_path),
+                self.homography)
             print('Saved calibration to path: {path}'.format(path=self.save_path))
         else:
             print('Laser is not calibrated!')
@@ -128,7 +147,6 @@ class LaserCalibration(object):
 if __name__ == '__main__':
     cm = np.load('../params/camera_matrix.npy')
     dc = np.load('../params/distortion_coefficients.npy')
-    scan_line = np.load('../test/calibobj.npy')
 
     lc = LaserCalibration(cm, dc, '../params')
 

@@ -3,6 +3,7 @@ import numpy as np
 
 
 
+
 class CameraCalibration(object):
 
     def __init__(self, pattern_size, square_size):
@@ -33,6 +34,7 @@ class CameraCalibration(object):
         pattern_points = np.zeros( (np.prod(self._pattern_size), 3), np.float32 )
         pattern_points[:,:2] = np.indices(self._pattern_size).T.reshape(-1, 2)
         pattern_points *= self._square_size
+#        print(pattern_points)
         return pattern_points
 
     def get_chessboard_corners(self, image, pattern_size):
@@ -53,6 +55,19 @@ class CameraCalibration(object):
             cv2.cornerSubPix(image, corners, (11, 11), (-1, -1), term)
             corners.reshape(-1, 2)
         return found, corners
+        
+    def get_outer_corners(self, corners):
+        tl = corners[0,0]
+        tr = corners[0,-1]
+        bl = corners[-1,0]
+        br = corners[-1,-1]
+        if tl[0] > tr[0]:
+                tr,tl = tl,tr
+                br,bl = bl,br
+        if tl[1] > bl[1]:
+                bl,tl=tl,bl
+                br,tr=tr,br
+        return (tl,tr,bl,br)
 
     def fast_check_chessboard(self, image, pattern_size):
         found, corners = cv2.findChessboardCorners(image, pattern_size,
@@ -82,6 +97,12 @@ class CameraCalibration(object):
          ret, self._cm, self._dc, self._rvecs, self._tvecs = calibration
          self.calibrated = True
          print('Calibration finished, RMS: {RMS}'.format(RMS=ret))
+         print('Rotation vectors')
+         print(self._rvecs)
+         print('Rodrigues')
+         print(cv2.Rodrigues(np.array(self._rvecs))[0])
+         print('Translation vectors')
+         print(self._tvecs)
 
     def save_camera_calibration(self, path):
         if self.calibrated:
@@ -95,12 +116,13 @@ class CameraCalibration(object):
 
 if __name__ == '__main__':
     from glob import glob
-    img_mask = '../test/chess*.tif'
+#    img_mask = '../test/C4_2040_GigE.tif'
+    img_mask = '../test/left01.jpg'
     img_names = glob(img_mask)
-    cc = CameraCalibration((13,13), 0.005)
+    cc = CameraCalibration((9,6), 35)
     for name in img_names:
         frame = cv2.imread(name, 0)
-        if cc.add_sample(frame, True):    
+        if cc.add_sample(frame, debug=True):    
             print('Added sample: {name}'.format(name=name))
         else:
             print('Sample was not added')
