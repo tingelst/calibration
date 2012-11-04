@@ -243,26 +243,12 @@ class Calibrator:
     def mkgray(self, msg):
         """
         Convert a message into a bgr8 OpenCV bgr8 *monochrome* image.
-        Deal with bayer images by converting to color, then to monochrome.
         """
-        # TODO OpenCV supports converting Bayer->monochrome directly now
-        # TODO Convert to one-channel monochrome instead, let other code
-        #      (e.g. downsample_and_detect) expand to bgr8.
-        #if 'bayer' in msg.encoding:
-            #converter = {
-                #"bayer_rggb8" : cv.CV_BayerBG2BGR,
-                #"bayer_bggr8" : cv.CV_BayerRG2BGR,
-                #"bayer_gbrg8" : cv.CV_BayerGR2BGR,
-                #"bayer_grbg8" : cv.CV_BayerGB2BGR }[msg.encoding]
-            #msg.encoding = "mono8"
-        raw = cv2.cv.fromarray(msg)
-        rgb = cv.CreateMat(raw.rows, raw.cols, cv.CV_8UC3)
-        mono = cv.CreateMat(raw.rows, raw.cols, cv.CV_8UC1)
+            
+        rgb = cv2.cvtColor(msg, cv2.COLOR_GRAY2BGR) 
+        rgb_cvmat = cv2.cv.fromarray(rgb)
 
-        cv.CvtColor(raw, mono, cv.CV_BGR2GRAY)
-        cv.CvtColor(mono, rgb, cv.CV_GRAY2BGR)
-
-        return rgb
+        return rgb_cvmat
 
     def get_parameters(self, corners, board, (width, height)):
         """
