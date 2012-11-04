@@ -9,7 +9,7 @@ import socket
 import struct
 import numpy as np
 import cv2
-
+import time
 
 
 class ImageViewer(object):
@@ -18,43 +18,56 @@ class ImageViewer(object):
         print('Image viewer')
         
         # Socket
-        self.HOST = "localhost"
-        self.PORT = 8888
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.im_struct = struct.Struct(2048*'B')
+        self.host = 'localhost'
+        self.port = 8888
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        
+        self.sock.connect((self.host, self.port))
+        self.im_struct = struct.Struct(2048*1088*'B')
         self.img = []
         
     def run(self):
         ''' Main loop '''
+        
+        t = time.time()
+        count = 0
+
         while(True):
-            count = 0
+
             img = []
-            self.sock.sendto("i", (self.HOST, self.PORT))
-#            recv = self.sock.recv(2048)
-#            img.append(self.im_struct.unpack(recv))
-            while(True):
-                self.sock.sendto("h", (self.HOST, self.PORT))
-                recv = self.sock.recv(2048)
-                if recv[:8] == 'finished':
-                    break
-                else:
-                    img.append(self.im_struct.unpack(recv))
+            recv = ""
+            self.sock.send("s")  # s = start
+            t = time.time()
+            while(len(recv) < 2048*1088):
+                recv += self.sock.recv(8192)
                 
-                count = count + 1
-
-
-            img = np.array(img, np.uint8)
-            img = cv2.pyrDown(img, dstsize = (1024, 544))
-            cv2.imshow('image', img)
+            frame = np.frombuffer(recv, np.uint8)
+            frame.resize(1088, 2048)
+            frame = cv2.pyrDown(frame, dstsize = (1024, 544))
+            cv2.imshow('image', frame)
             c = cv2.waitKey(30)
             if c == 27:
                 break
+            
+            t = time.time() - t
+            print(1.0 / t)
+
+            
+                
+#            img = np.array(img, np.uint8)
+##            np.save('image_{count}.npy'.format(count=count), img)
+
+
+            
+            del recv
             del img
             
             
                 
 if __name__ == '__main__':
-    ImageViewer().run()
+    iv = ImageViewer()
+    iv.run()
                 
         
         
