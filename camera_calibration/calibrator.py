@@ -72,6 +72,9 @@ class CameraCalibration(object):
         self.displaywidth = drawable.scrib.cols
         self.redraw_monocular(drawable)
 
+    def do_upload(self):
+        print('do_upload')
+
 class OpenCVCalibration(CameraCalibration):
     """ Calibration node with an OpenCV Gui """
 
@@ -87,7 +90,7 @@ class OpenCVCalibration(CameraCalibration):
         if event == cv.CV_EVENT_LBUTTONDOWN and self.displaywidth < x:
             if self.calibrator.goodenough:
                 if 180 <= y < 280:
-                    self.c.do_calibration()
+                    self.calibrator.do_calibration()
             if self.calibrator.calibrated:
                 if 280 <= y < 380:
                     self.calibrator.do_save()
@@ -178,5 +181,5 @@ class OpenCVCalibration(CameraCalibration):
 if __name__ == '__main__':
     capture = cv2.VideoCapture(0)
     boards = []
-    boards.append(ChessboardInfo(8,6,0.035))
+    boards.append(ChessboardInfo(8,6,0.005))
     calibrator = OpenCVCalibration(capture, boards)

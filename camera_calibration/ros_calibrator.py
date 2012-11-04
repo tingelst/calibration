@@ -492,6 +492,7 @@ class Calibrator:
         return calmessage
 
     def do_save(self):
+        print('{0}.do_save'.format(self.__class__))
         filename = '/tmp/calibrationdata.tar.gz'
         tf = tarfile.open(filename, 'w:gz')
         self.do_tarfile_save(tf) # Must be overridden in subclasses
@@ -797,6 +798,8 @@ class MonoCalibrator(Calibrator):
         ims = [("left-%04d.png" % i, im) for i,(_, im) in enumerate(self.db)]
         for (name, im) in ims:
             taradd(name, cv.EncodeImage(".png", im).tostring())
+
+
 
         taradd('ost.txt', self.ost())
 
