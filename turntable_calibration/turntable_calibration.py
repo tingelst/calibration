@@ -16,7 +16,7 @@ import time
 
 class TurntableCalibrator(object):
     
-    def __init__(self, capture, camera_matrix, dist_coeffs, homography, rvec, tvec):
+    def __init__(self, capture, camera_matrix, dist_coeffs, homography, rvec, tvec, save_path):
         self.capture = capture        
         
         self.cm = camera_matrix
@@ -24,6 +24,8 @@ class TurntableCalibrator(object):
         self.homography = homography
         self.rvec = rvec
         self.tvec = tvec
+        
+        self.save_path = save_path
         
         self._pattern_size = (8,6)
         self._square_size = 0.011
@@ -36,6 +38,11 @@ class TurntableCalibrator(object):
         self.timed_frames = []
         
         self.img_col = None
+        
+        self.calibrated = False
+        self.center = None
+        self.axis = None
+        self.angspeed = None
         
         self.win_name = 'Turntable calibration'
 #        cv2.namedWindow(self.win_name)
@@ -138,7 +145,7 @@ class TurntableCalibrator(object):
         return found
         
     def identify_flip(self, corners):
-        # TODO does not work
+        # TODO 
         ## WORKAROUND: START APPLICATION WHEN THE ASTERISK IS ON THE BOTTOM
         ## OF THE IMAGE THIS ENSURES THAT THE CORNER POINTS DOES NOT FLIP
 #        ip = self._image_points[0].reshape(-1,2)
@@ -211,14 +218,28 @@ class TurntableCalibrator(object):
         
         return c, n, w
         
-    def run(self, debug=False):
+    def calibrate(self, debug=False):
         self.capture_stamped_images()
         for i in range(3):
             ret, frame = self.timed_frames[i][1]
             self.add_sample(frame, debug)
         cv2.destroyAllWindows()
-        center, axis, angspeed = tc.find_rotation_point_and_axis()
-        print center, axis, angspeed
+        self.center, self.axis, self.angspeed = tc.find_rotation_point_and_axis()
+        self.calibrated = True
+        print self.center, self.axis, self.angspeed
+        
+        
+    def save_calibration(self):
+        if self.calibrated:
+            np.save('{path}/turntable_center.npy'.format(path=self.save_path),
+                self.center)
+            np.save('{path}/turntable_axis'.format(path=self.save_path),
+                self.axis)
+            np.save('{path}/turntable_angspeed.npy'.format(path=self.save_path),
+                self.angspeed)
+            print('Saved turntable calibration to path: {path}'.format(path=self.save_path))
+        else:
+            print('Laser is not calibrated!')
         
 class ATC4Capture(threading.Thread):
     def __init__(self):
@@ -252,15 +273,10 @@ if __name__ == '__main__':
     
     cap = ATC4Capture()
     
-    tc = TurntableCalibrator(cap, cm, dc, h, rvec, tvec)
-    tc.run(debug=True)
-#    tc.capture_stamped_images()
-#    for i in range(3):
-#        print('center{0}.tif'.format(i+1))
-#        img = cv2.imread('center{0}.tif'.format(i+1), 0)
-#        tc.add_sample(img) 
-#    center, axis, angspeed = tc.find_rotation_point_and_axis()
-#    print center, axis, angspeed
+    tc = TurntableCalibrator(cap, cm, dc, h, rvec, tvec, '../params')
+    tc.calibrate(debug=True)
+    tc.save_calibration()
+
         
     
         

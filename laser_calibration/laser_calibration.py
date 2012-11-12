@@ -13,7 +13,6 @@ red = (0,0,255)
 white = (255,255,255)
 
 class LaserCalibration(object):
-    
 
     def __init__(self, camera_matrix, dist_coeffs, save_path):
         self.cm = camera_matrix
@@ -46,7 +45,7 @@ class LaserCalibration(object):
         self.ax.set_title('Laser calibration')
         self.ax.axis([0, 2048, 1088, 0])
         self.x_range = pylab.arange(0, 2048, 1)
-        self.line1, = self.ax.plot(2048, 1088)
+#        self.line1, = self.ax.plot(2048, 1088)
         self.line2, = self.ax.plot(2048, 1088)
         self.manager = pylab.get_current_fig_manager()
         self.cid = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
@@ -58,10 +57,6 @@ class LaserCalibration(object):
         print('Press MBM to add point, press RBM to calibrate and save calibration')
 
         pylab.show()
-         
-#        self.win_name = 'Laser calibration'
-#        cv2.namedWindow(self.win_name)
-#        cv2.setMouseCallback(self.win_name, self._on_mouse)
         
     def on_click(self, event):
         if len(self.img_pts) < 4:
@@ -78,10 +73,11 @@ class LaserCalibration(object):
     def real_time_plotter(self, arg):
         self.sock.sendto(" ", (self.HOST, self.PORT))
         received = self.sock.recv(4096)
-        rec = np.array(self.linescan_struct.unpack(received))
-#        xarr, yarr = self.undistort_points(rec)
-        self.line1.set_data(self.x_range, rec)  # Plot raw pixels
-#        self.line2.set_data(xarr, yarr)  # Plot undistorted pixels
+        rec = np.array(self.linescan_struct.unpack(received), np.float64)
+        rec /= 2**6  # COG 6bit mode
+        xarr, yarr = self.undistort_points(rec)
+#        self.line1.set_data(self.x_range, rec)  # Plot raw pixels
+        self.line2.set_data(xarr, yarr)  # Plot undistorted pixels
         self.manager.canvas.draw()
 
     def get_pose(self, object_points, image_points, ransac=False):
@@ -125,8 +121,9 @@ class LaserCalibration(object):
         self.rvec, self.tvec = self.get_pose(self.obj_pts_3d, self.img_pts, ransac=False)
         print('Homography')
         print(self.homography)
-        print('Rotation vector')
-        print(self.rvec)
+        print('Rotation matrix')
+        rm, jac = cv2.Rodrigues(self.rvec)
+        print(rm)
         print('Translation vector')
         print(self.tvec)
         self.calibrated = True        
@@ -136,17 +133,18 @@ class LaserCalibration(object):
             np.save('{path}/homography.npy'.format(path=self.save_path),
                 self.homography)
             np.save('{path}/rvec_laser_calib_obj.npy'.format(path=self.save_path),
-                self.homography)
+                self.rvec)
             np.save('{path}/tvec_laser_calib_obj.npy'.format(path=self.save_path),
-                self.homography)
+                self.tvec)
             print('Saved calibration to path: {path}'.format(path=self.save_path))
         else:
             print('Laser is not calibrated!')
 
 
 if __name__ == '__main__':
-    cm = np.load('../params/camera_matrix.npy')
-    dc = np.load('../params/distortion_coefficients.npy')
+    cm = np.load('../params/cm.npy')
+    dc = np.load('../params/dc.npy')
+    
 
     lc = LaserCalibration(cm, dc, '../params')
 
