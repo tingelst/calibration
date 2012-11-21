@@ -244,8 +244,8 @@ class Calibrator:
         """
         Convert a message into a bgr8 OpenCV bgr8 *monochrome* image.
         """
-            
-        rgb = cv2.cvtColor(msg, cv2.COLOR_GRAY2BGR) 
+
+        rgb = cv2.cvtColor(msg, cv2.COLOR_GRAY2BGR)
         rgb_cvmat = cv2.cv.fromarray(rgb)
 
         return rgb_cvmat
@@ -479,6 +479,8 @@ class Calibrator:
 
     def do_save(self):
         print('{0}.do_save'.format(self.__class__))
+        numpy.save('dc.npy', numpy.asarray(self.distortion, numpy.float32))
+        numpy.save('cm.npy', numpy.asarray(self.intrinsics, numpy.float32))
         filename = '/tmp/calibrationdata.tar.gz'
         tf = tarfile.open(filename, 'w:gz')
         self.do_tarfile_save(tf) # Must be overridden in subclasses

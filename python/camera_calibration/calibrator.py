@@ -4,6 +4,8 @@ import numpy as np
 
 import os
 
+from gigE import pvlib
+
 
 
 import socket
@@ -199,9 +201,27 @@ class ATC4Capture(threading.Thread):
         frame.resize(1088, 2048)
         return True, frame
 
+class GigECapture(threading.Thread):
+    def __init__(self):
+        self.cam = None
+        self.pv = pvlib.PvLib()
+        cams = self.pv.getCameras()
+        if not cams:
+            print('Error getting camera list')
+        else:
+            self.cam = cams[0]
+            self.cam.startCaptureTrigger()
+
+    def read(self):
+        frame = self.cam.getNumpyArray()
+        return True, frame
+
+
+
 if __name__ == '__main__':
     #capture = cv2.VideoCapture(0)
-    capture = ATC4Capture()
+    capture = GigECapture()
+    #capture = ATC4Capture()
     boards = []
-    boards.append(ChessboardInfo(8,6,0.005))
+    boards.append(ChessboardInfo(8,6,0.0245))
     calibrator = OpenCVCalibration(capture, boards)

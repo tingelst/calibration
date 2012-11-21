@@ -5,7 +5,7 @@ import socket
 import struct
 
 import time
- 
+
 
 blue = (255,0,0)
 green = (0,255,0)
@@ -20,25 +20,25 @@ class LaserCalibration(object):
         self.homography = None
         self.rvec = None
         self.tvec = None
-        
+
         self.save_path = save_path
-        
-        self.obj_pts = [[0.045, 0.050], [0.015, 0.090], 
+
+        self.obj_pts = [[0.045, 0.050], [0.015, 0.090],
                         [-0.015, 0.090], [-0.045, 0.050]]
-        self.obj_pts_3d = [[0.045, 0.0, 0.050], [0.015, 0.0, 0.090], 
+        self.obj_pts_3d = [[0.045, 0.0, 0.050], [0.015, 0.0, 0.090],
                         [-0.015, 0.0, 0.090], [-0.045, 0.0, 0.050]]
-                           
+
         self.img_pts = []
         self.img_col = None
         self.samples = []
         self.calibrated = False
-        
+
         self.HOST = "localhost"
         self.PORT = 8888
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        
+
         self.linescan_struct = struct.Struct(2048*'H')
-        
+
         self.fig = pylab.figure(1)
         self.ax = self.fig.add_subplot(111)
         self.ax.grid(True)
@@ -52,12 +52,12 @@ class LaserCalibration(object):
         self.timer = self.fig.canvas.new_timer(interval=20)
         self.timer.add_callback(self.real_time_plotter, ())
         self.timer.start()
-        
+
         print('Laser calibration')
         print('Press MBM to add point, press RBM to calibrate and save calibration')
 
         pylab.show()
-        
+
     def on_click(self, event):
         if len(self.img_pts) < 4:
             if event.button == 2:
@@ -69,7 +69,7 @@ class LaserCalibration(object):
                 self.save_laser_calibration()
             if event.button == 2:
                 print('All image points added')
-            
+
     def real_time_plotter(self, arg):
         self.sock.sendto(" ", (self.HOST, self.PORT))
         received = self.sock.recv(4096)
@@ -92,7 +92,7 @@ class LaserCalibration(object):
         else:
             ret, rvec, tvec = cv2.solvePnP(op, ip, self.cm, self.dc, flags=flag)
             return rvec, tvec
-            
+
     def undistort_points(self, scanline):
         length = len(scanline)
         # Create temp array
@@ -115,7 +115,7 @@ class LaserCalibration(object):
         op = np.array(object_points, np.float32)
         homography, mask = cv2.findHomography(ip, op)
         return homography, mask
-        
+
     def calibrate_laser(self):
         self.homography, m = self.get_homography(self.obj_pts, self.img_pts)
         self.rvec, self.tvec = self.get_pose(self.obj_pts_3d, self.img_pts, ransac=False)
@@ -126,8 +126,8 @@ class LaserCalibration(object):
         print(rm)
         print('Translation vector')
         print(self.tvec)
-        self.calibrated = True        
-    
+        self.calibrated = True
+
     def save_laser_calibration(self):
         if self.calibrated:
             np.save('{path}/homography.npy'.format(path=self.save_path),
@@ -144,10 +144,10 @@ class LaserCalibration(object):
 if __name__ == '__main__':
     cm = np.load('../params/cm.npy')
     dc = np.load('../params/dc.npy')
-    
+
 
     lc = LaserCalibration(cm, dc, '../params')
 
-    
-    
-    
+
+
+
