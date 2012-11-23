@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<opencv_storage>
+<settings>
+  
+  <!-- Number of rows and columns in the image -->
+  <image_size_width> 1024 </image_size_width>
+  <image_size_height> 768 </image_size_height>
+  <!-- Number of inner corners per a item row and column. (square, circle) -->
+  <board_size_width>8</board_size_width>
+  <board_size_height>6</board_size_height>
+  
+  <!-- The size of a square in some user defined metric system (pixel, millimeter)-->
+  <square_size>50</square_size>
+  
+  <!-- The type of input used for camera calibration. One of: CHESSBOARD CIRCLES_GRID ASYMMETRIC_CIRCLES_GRID -->
+  <calibrate_pattern>"CHESSBOARD"</calibrate_pattern>	
+  
+  <!-- How many frames to use, for calibration. -->
+  <calibrate_nr_of_frame_to_use>25</calibrate_nr_of_frame_to_use>
+  <!-- Consider only fy as a free parameter, the ratio fx/fy stays the same as in the input cameraMatrix. 
+	   Use or not setting. 0 - False Non-Zero - True-->
+  <calibrate_fix_aspect_ratio> 1 </calibrate_fix_aspect_ratio>
+  <!-- If true (non-zero) tangential distortion coefficients  are set to zeros and stay zero.-->
+  <calibrate_assume_zero_tangential_distortion>1</calibrate_assume_zero_tangential_distortion>
+  <!-- If true (non-zero) the principal point is not changed during the global optimization.-->
+  <calibrate_fix_principal_point_at_center> 1 </calibrate_fix_principal_point_at_center>
+  
+  <!-- The name of the output log file. -->
+  <write_output_file_name>"out_camera_data.xml"</write_output_file_name>
+  <!-- If true (non-zero) we write to the output file the feature points.-->
+  <write_detected_feature_points>1</write_detected_feature_points>
+  <!-- If true (non-zero) we write to the output file the extrinsic camera parameters.-->
+  <write_extrinsic_parameters>1</write_extrinsic_parameters>
+  <!-- If true (non-zero) we show after calibration the undistorted images.-->
+  <show_undistorted_image>1</show_undistorted_image>
+  
+  <input_delay> 500 </input_delay>
+ 
+</settings>
+</opencv_storage>
