@@ -244,7 +244,9 @@ class Calibrator:
         """
         Convert a message into a bgr8 OpenCV bgr8 *monochrome* image.
         """
-
+        temp = cv2.cvtColor(msg, cv2.COLOR_BGR2GRAY)
+        msg = temp        
+        
         rgb = cv2.cvtColor(msg, cv2.COLOR_GRAY2BGR)
         rgb_cvmat = cv2.cv.fromarray(rgb)
 
@@ -411,7 +413,7 @@ class Calibrator:
             # Scale corners to downsampled image for display
             downsampled_corners = None
             if ok:
-                print corners
+#                print corners
                 if scale > 1.0:
                     downsampled_corners = [(c[0]/x_scale, c[1]/y_scale) for c in corners]
                 else:
@@ -481,7 +483,9 @@ class Calibrator:
         print('{0}.do_save'.format(self.__class__))
         numpy.save('dc.npy', numpy.asarray(self.distortion, numpy.float32))
         numpy.save('cm.npy', numpy.asarray(self.intrinsics, numpy.float32))
-        filename = '/tmp/calibrationdata.tar.gz'
+        cv.Save('camera_matrix.xml', self.intrinsics)
+        cv.Save('distortion_coefficients.xml', self.distortion)
+        filename = 'calibrationdata.tar.gz'
         tf = tarfile.open(filename, 'w:gz')
         self.do_tarfile_save(tf) # Must be overridden in subclasses
         tf.close()
@@ -717,9 +721,10 @@ class MonoCalibrator(Calibrator):
         """
         rgb = self.mkgray(msg)
         linear_error = -1
-
+        
         # Get display-image-to-be (scrib) and detection of the calibration target
         scrib, corners, downsampled_corners, board, (x_scale, y_scale) = self.downsample_and_detect(rgb)
+
 
         if self.calibrated:
             # Show rectified image

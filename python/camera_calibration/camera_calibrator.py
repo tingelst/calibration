@@ -1,18 +1,18 @@
+import sys
+
 import cv2
 import cv2.cv as cv
-import numpy as np
+#import numpy as np
 
 import os
 
-from gigE import pvlib
+#from gigE import pvlib
 
-
-
-import socket
+#import socket
 import threading
 import Queue
 
-from ros_calibrator import MonoCalibrator, ChessboardInfo
+from camera_calibrator_base import MonoCalibrator, ChessboardInfo
 # BUG!
 ESC = 536870939
 
@@ -86,10 +86,8 @@ class OpenCVCalibration(CameraCalibration):
     def __init__(self, *args):
 
         CameraCalibration.__init__(self, *args)
-        cv.NamedWindow("display")
-        self.font = cv.InitFont(cv.CV_FONT_HERSHEY_SIMPLEX, 0.20, 1, thickness = 2)
-        cv.SetMouseCallback("display", self.on_mouse)
-        cv.CreateTrackbar("scale", "display", 0, 100, self.on_scale)
+        self.window_name = 'Camera calibration'
+        self.font = cv.InitFont(cv.CV_FONT_HERSHEY_SIMPLEX, 0.2, 1, thickness=1)
 
     def on_mouse(self, event, x, y, flags, param):
         if event == cv.CV_EVENT_LBUTTONDOWN and self.displaywidth < x:
@@ -107,29 +105,25 @@ class OpenCVCalibration(CameraCalibration):
     def waitkey(self):
         k = cv.WaitKey(6)
         if k in [27, ord('q')]:
-            rospy.signal_shutdown('Quit')
+            sys.exit()
+        elif k == ord('c'):
+            if self.calibrator.goodenough:
+                print('Calibrating camera')
+                self.calibrator.do_calibration()
+            else:
+                print('Not enough good samples')
+        elif k == ord('s'):
+            if self.calibrator.calibrated:
+                print('Saving calibration')
+                self.calibrator.do_save()
+            else:
+                print('Camera is not calibrated. Cannot save calibration')
+#            rospy.signal_shutdown('Quit')
         return k
 
     def on_scale(self, scalevalue):
         if self.calibrator.calibrated:
             self.calibrator.set_alpha(scalevalue / 100.0)
-
-    def button(self, dst, label, enable):
-        cv.Set(dst, (255, 255, 255))
-        size = cv.GetSize(dst)
-        if enable:
-            color = cv.RGB(155, 155, 80)
-        else:
-            color = cv.RGB(224, 224, 224)
-        cv.Circle(dst, (size[0] / 2, size[1] / 2), min(size) / 2, color, -1)
-        ((w, h), _) = cv.GetTextSize(label, self.font)
-        cv.PutText(dst, label, ((size[0] - w) / 2, (size[1] + h) / 2), self.font, (255,255,255))
-
-    def buttons(self, display):
-        x = self.displaywidth
-        self.button(cv.GetSubRect(display, (x,180,100,100)), "CALIBRATE", self.calibrator.goodenough)
-        self.button(cv.GetSubRect(display, (x,280,100,100)), "SAVE", self.calibrator.calibrated)
-        self.button(cv.GetSubRect(display, (x,380,100,100)), "COMMIT", self.calibrator.calibrated)
 
     def y(self, i):
         """Set up right-size images"""
@@ -137,33 +131,61 @@ class OpenCVCalibration(CameraCalibration):
 
     def screendump(self, im):
         i = 0
-        while os.access("/tmp/dump%d.png" % i, os.R_OK):
+        while os.access("dump%d.png" % i, os.R_OK):
             i += 1
-        cv.SaveImage("/tmp/dump%d.png" % i, im)
+        cv.SaveImage("dump%d.png" % i, im)
 
     def redraw_monocular(self, drawable):
         width, height = cv.GetSize(drawable.scrib)
 
-        display = cv.CreateMat(max(480, height), width + 100, cv.CV_8UC3)
+        display = cv.CreateMat(max(480, height), width, cv.CV_8UC3)
         cv.Zero(display)
         cv.Copy(drawable.scrib, cv.GetSubRect(display, (0,0,width,height)))
-        cv.Set(cv.GetSubRect(display, (width,0,100,height)), (255, 255, 255))
 
-        self.buttons(display)
         if not self.calibrator.calibrated:
             if drawable.params:
                  for i, (label, lo, hi, progress) in enumerate(drawable.params):
                     (w,_),_ = cv.GetTextSize(label, self.font)
-                    cv.PutText(display, label, (width + (100 - w) / 2, self.y(i)), self.font, (0,0,0))
+                    cv.PutText(display, label, (width + (-w - 100) / 2, self.y(i)), self.font, (255,255,255))
                     color = (0,255,0)
                     if progress < 1.0:
                         color = (0, int(progress*255.), 255)
                     cv.Line(display,
-                            (int(width + lo * 100), self.y(i) + 20),
-                            (int(width + hi * 100), self.y(i) + 20),
+                            (int(width -100 + lo * 100), self.y(i) + 20),
+                            (int(width -100  + hi * 100), self.y(i) + 20),
                             color, 4)
+                    if self.calibrator.goodenough:     
+                        text_cal = 'Press \'c\' to calibrate camera'
+                        (w,_),_ = cv.GetTextSize(text_cal, self.font)
+                        cv.PutText(display, text_cal, 
+                               (width - w - 10, height - 10), self.font, (0,255,0))
+   
+                    else:     
+                        text = 'Show calibration pattern to camera'
+                        (w,_),_ = cv.GetTextSize(text, self.font)
+                        cv.PutText(display, text, 
+                               (width - w - 10, height - 10), self.font, (255,255,255))  
+                
+            elif not drawable.params:
+                text = 'Show calibration pattern to camera'
+                (w, h),_ = cv.GetTextSize(text, self.font)
+                cv.PutText(display, text,
+                           (width - w - 10, height - 10), self.font, (255,255,255))
+                            
+            
 
         else:
+            text_calibrated = 'Calibrated'
+            (w, h),_ = cv.GetTextSize(text_calibrated, self.font)
+            cv.PutText(display, text_calibrated, 
+                       (10, h + 10), self.font, (0,255,0)) 
+            text_save = 'Press \'s\' to save calibration'
+            (w, h),_ = cv.GetTextSize(text_save, self.font)
+            cv.PutText(display, text_save, 
+                   (width - w - 10, height - 10), self.font, (0,255,0))
+            
+            
+            
             cv.PutText(display, "lin.", (width, self.y(0)), self.font, (0,0,0))
             linerror = drawable.linear_error
             if linerror < 0:
@@ -175,52 +197,52 @@ class OpenCVCalibration(CameraCalibration):
 
         self.show(display)
 
-
     def show(self, im):
-        cv.ShowImage("display", im)
-        if self.waitkey() == ord('s'):
+#        im = np.array(im)
+#        cv2.imshow('temp', im)
+        cv.ShowImage(self.window_name, im)
+        if self.waitkey() == ord('p'):
             self.screendump(im)
 
+#class ATC4Capture(threading.Thread):
+#    def __init__(self):
+#
+#        # Socket
+#        self.host = "169.254.208.224"
+#        self.port = 9999
+#        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+#        self.sock.connect((self.host, self.port))
+#
+#    def read(self):
+#        recv = ""
+#        self.sock.send("s")  # s = start
+#        while(len(recv) < 2048*1088):
+#            recv += self.sock.recv(8192)
+#        frame = np.frombuffer(recv, np.uint8)
+#        frame.resize(1088, 2048)
+#        return True, frame
 
-class ATC4Capture(threading.Thread):
-    def __init__(self):
-
-        # Socket
-        self.host = "169.254.208.224"
-        self.port = 9999
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        self.sock.connect((self.host, self.port))
-
-    def read(self):
-        recv = ""
-        self.sock.send("s")  # s = start
-        while(len(recv) < 2048*1088):
-            recv += self.sock.recv(8192)
-        frame = np.frombuffer(recv, np.uint8)
-        frame.resize(1088, 2048)
-        return True, frame
-
-class GigECapture(threading.Thread):
-    def __init__(self):
-        self.cam = None
-        self.pv = pvlib.PvLib()
-        cams = self.pv.getCameras()
-        if not cams:
-            print('Error getting camera list')
-        else:
-            self.cam = cams[0]
-            self.cam.startCaptureTrigger()
-
-    def read(self):
-        frame = self.cam.getNumpyArray()
-        return True, frame
+#class GigECapture(threading.Thread):
+#    def __init__(self):
+#        self.cam = None
+#        self.pv = pvlib.PvLib()
+#        cams = self.pv.getCameras()
+#        if not cams:
+#            print('Error getting camera list')
+#        else:
+#            self.cam = cams[0]
+#            self.cam.startCaptureTrigger()
+#
+#    def read(self):
+#        frame = self.cam.getNumpyArray()
+#        return True, frame
 
 
 
 if __name__ == '__main__':
-    #capture = cv2.VideoCapture(0)
-    capture = GigECapture()
+    capture = cv2.VideoCapture(0)
+#    capture = GigECapture()
     #capture = ATC4Capture()
     boards = []
     boards.append(ChessboardInfo(8,6,0.0245))
