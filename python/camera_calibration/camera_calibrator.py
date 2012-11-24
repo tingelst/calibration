@@ -2,13 +2,8 @@ import sys
 
 import cv2
 import cv2.cv as cv
-#import numpy as np
 
 import os
-
-#from gigE import pvlib
-
-#import socket
 import threading
 import Queue
 
@@ -88,19 +83,8 @@ class OpenCVCalibration(CameraCalibration):
         CameraCalibration.__init__(self, *args)
         self.window_name = 'Camera calibration'
         self.font = cv.InitFont(cv.CV_FONT_HERSHEY_SIMPLEX, 0.2, 1, thickness=1)
-
-    def on_mouse(self, event, x, y, flags, param):
-        if event == cv.CV_EVENT_LBUTTONDOWN and self.displaywidth < x:
-            if self.calibrator.goodenough:
-                if 180 <= y < 280:
-                    self.calibrator.do_calibration()
-            if self.calibrator.calibrated:
-                if 280 <= y < 380:
-                    self.calibrator.do_save()
-                elif 380 <= y < 480:
-                    # Only shut down if we set camera info correctly, #3993
-                    if self.do_upload():
-                        print('Should quit')
+        self.show_undistorted = False
+        self.saved_calibration = False
 
     def waitkey(self):
         k = cv.WaitKey(6)
@@ -113,17 +97,18 @@ class OpenCVCalibration(CameraCalibration):
             else:
                 print('Not enough good samples')
         elif k == ord('s'):
-            if self.calibrator.calibrated:
+            if self.calibrator.calibrated and not self.saved_calibration:
                 print('Saving calibration')
                 self.calibrator.do_save()
+                self.saved_calibration = True
             else:
                 print('Camera is not calibrated. Cannot save calibration')
-#            rospy.signal_shutdown('Quit')
+        elif k == ord('u'):
+            if not self.show_undistorted:
+                self.show_undistorted = True
+            else:
+                self.show_undistorted = False
         return k
-
-    def on_scale(self, scalevalue):
-        if self.calibrator.calibrated:
-            self.calibrator.set_alpha(scalevalue / 100.0)
 
     def y(self, i):
         """Set up right-size images"""
@@ -171,35 +156,40 @@ class OpenCVCalibration(CameraCalibration):
                 (w, h),_ = cv.GetTextSize(text, self.font)
                 cv.PutText(display, text,
                            (width - w - 10, height - 10), self.font, (255,255,255))
-                            
-            
 
         else:
+            if self.show_undistorted:
+                display = self.undistort_image(display)
             text_calibrated = 'Calibrated'
             (w, h),_ = cv.GetTextSize(text_calibrated, self.font)
             cv.PutText(display, text_calibrated, 
                        (10, h + 10), self.font, (0,255,0)) 
-            text_save = 'Press \'s\' to save calibration'
-            (w, h),_ = cv.GetTextSize(text_save, self.font)
-            cv.PutText(display, text_save, 
-                   (width - w - 10, height - 10), self.font, (0,255,0))
+            if not self.saved_calibration:
+                text_save = 'Press \'s\' to save calibration'
+                (w, h),_ = cv.GetTextSize(text_save, self.font)
+                cv.PutText(display, text_save, 
+                       (width - w - 10, height - 10), self.font, (0,255,0))
             
-            
-            
-            cv.PutText(display, "lin.", (width, self.y(0)), self.font, (0,0,0))
-            linerror = drawable.linear_error
-            if linerror < 0:
-                msg = "?"
-            else:
-                msg = "%.2f" % linerror
-                #print "linear", linerror
-            cv.PutText(display, msg, (width, self.y(1)), self.font, (0,0,0))
+#            cv.PutText(display, "lin.", (width, self.y(0)), self.font, (0,0,0))
+#            linerror = drawable.linear_error
+#            if linerror < 0:
+#                msg = "?"
+#            else:
+#                msg = "%.2f" % linerror
+#                #print "linear", linerror
+#            cv.PutText(display, msg, (width, self.y(1)), self.font, (0,0,0))
 
         self.show(display)
+        
+    def undistort_image(self, im):
+        cm = cv.Load('camera_matrix.xml')
+        dc = cv.Load('distortion_coefficients.xml')
+        width, height = cv.GetSize(im)
+        display = cv.CreateMat(height, width, cv.CV_8UC3)
+        cv.Undistort2(im, display, cm, dc)
+        return display
 
     def show(self, im):
-#        im = np.array(im)
-#        cv2.imshow('temp', im)
         cv.ShowImage(self.window_name, im)
         if self.waitkey() == ord('p'):
             self.screendump(im)
