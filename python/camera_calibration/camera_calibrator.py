@@ -88,22 +88,22 @@ class OpenCVCalibration(CameraCalibration):
 
     def waitkey(self):
         k = cv.WaitKey(6)
-        if k in [27, ord('q')]:
+        if k in [536870939, 27, ord('q')]:
             sys.exit()
-        elif k == ord('c'):
+        elif k in [536871011, ord('c')]:
             if self.calibrator.goodenough:
                 print('Calibrating camera')
                 self.calibrator.do_calibration()
             else:
                 print('Not enough good samples')
-        elif k == ord('s'):
+        elif k in [536871027, ord('s')]:
             if self.calibrator.calibrated and not self.saved_calibration:
                 print('Saving calibration')
                 self.calibrator.do_save()
                 self.saved_calibration = True
             else:
                 print('Camera is not calibrated. Cannot save calibration')
-        elif k == ord('u'):
+        elif k in [536871029, ord('u')]:
             if not self.show_undistorted:
                 self.show_undistorted = True
             else:
@@ -191,8 +191,7 @@ class OpenCVCalibration(CameraCalibration):
 
     def show(self, im):
         cv.ShowImage(self.window_name, im)
-        if self.waitkey() == ord('p'):
-            self.screendump(im)
+        k = self.waitkey()
 
 #class ATC4Capture(threading.Thread):
 #    def __init__(self):
