@@ -137,8 +137,6 @@ class Calibrator(object):
                 center_subpix_roi = self._fit_ellipse(roi)
                 center_subpix_fullframe = np.array([np.float32(x1) + center_subpix_roi[0], 
                                                     np.float32(y1) + center_subpix_roi[1]])
-#            print(center_subpix_fullframe)
-
             
             if self._state == State.PLANE1:
                 if len(self._imgpts_row16) < 4:  ## 4
@@ -177,30 +175,35 @@ class Calibrator(object):
             ## find plane homography
             if self._state == State.PLANE1:
                 ## undistort and nom
-                pts = self._undistort_points(np.array(self._imgpts_row16, np.float32))[1]
-                self._homography_plane1, mask = cv2.findHomography(pts, np.array(self._objpts_row1 + self._objpts_row6, np.float32))
+                pts = self._undistort_points(np.array(self._imgpts_row16,
+                                                      np.float32))[1]
+                self._homography_plane1, mask = cv2.findHomography(pts, 
+                    np.array(self._objpts_row1 + self._objpts_row6, np.float32))
                 self._homography_matrices.append(self._homography_plane1)
             elif self._state == State.PLANE2:
-                pts = self._undistort_points(np.array(self._imgpts_row25, np.float32))[1]
-                self._homography_plane2, mask = cv2.findHomography(pts, np.array(self._objpts_row2 + self._objpts_row5, np.float32))
+                pts = self._undistort_points(np.array(self._imgpts_row25,
+                                                      np.float32))[1]
+                self._homography_plane2, mask = cv2.findHomography(pts,
+                    np.array(self._objpts_row2 + self._objpts_row5, np.float32))
                 self._homography_matrices.append(self._homography_plane2)    
             elif self._state == State.PLANE3:
                 pts = self._undistort_points(np.array(self._imgpts_row34, np.float32))[1]
-                self._homography_plane3, mask = cv2.findHomography(pts, np.array(self._objpts_row3 + self._objpts_row4, np.float32))
+                self._homography_plane3, mask = cv2.findHomography(pts,
+                    np.array(self._objpts_row3 + self._objpts_row4, np.float32))
                 self._homography_matrices.append(self._homography_plane3)
                 ## find object pose
-                self._imgpts = np.concatenate((np.array(self._imgpts_row16, np.float32), 
-                                             np.array(self._imgpts_row25, np.float32),
-                                             np.array(self._imgpts_row34, np.float32)))
+                self._imgpts = np.concatenate(
+                        (np.array(self._imgpts_row16, np.float32), 
+                         np.array(self._imgpts_row25, np.float32),
+                         np.array(self._imgpts_row34, np.float32)))
                                              
                 self._homography_matrices.append(self._homography_plane2)
                 self._homography_matrices.append(self._homography_plane1)
-
-                                             
-                                                                                          
                                              
                 ## Not necessary to undistort the points before solvePnP
-                ret, rvec, self._tvec = cv2.solvePnP(self._objpts_3d, self._imgpts, self._cm, self._dc)
+                ret, rvec, self._tvec = cv2.solvePnP(self._objpts_3d,
+                                                     self._imgpts, 
+                                                     self._cm, self._dc)
                 self._rmat, jac = cv2.Rodrigues(rvec)
                 print('Rotation matrix:')
                 print(self._rmat)
@@ -231,54 +234,20 @@ class Calibrator(object):
 #                print('Points in object')
 #                print(self._ptp_laserline_3d_in_object)
 
-                self._get_laserline_object_coords_in_camera(self._ptp_laserline_3d_in_object)
-                print(self._ptp_laserline_3d_in_camera)
-                print('laser_plane equation in camera coordinate system')
-                self._fit_plane_to_laserline_object_coords(self._ptp_laserline_3d_in_camera)
+#                self._get_laserline_object_coords_in_camera(self._ptp_laserline_3d_in_object)
+#                print(self._ptp_laserline_3d_in_camera)
+#                print('laser_plane equation in camera coordinate system')
+                self._fit_plane_to_laserline_object_coords(self._ptp_laserline_3d_in_object)
+                
+                print('Laser plane normal:')
                 print(self._laserplane_eq)
-                
-
-              
-                
-#                self._ud = np.concatenate((undistorted_laserline[0],
-#                                     undistorted_laserline[1],
-#                                     undistorted_laserline[2],
-#                                     undistorted_laserline[3],
-#                                     undistorted_laserline[4]))
-#                self._ud.resize(self._ud.shape[0],1,2)
-#                print(self._ud.shape)
-#                
-#                self._camera_laser_plane_homography, mask = cv2.findHomography(self._ptp_laserline_3d_in_camera.resize(self._ptp_laserline_3d_in_camera.shape[0], 1, 2).astype(np.float32), self._ud.astype(np.float32))
-#                print(self._camera_laser_plane_homography)
-
-                
-#                print(ud.shape)
-#                for i in range(1, len(undistorted_laserline)):
-#                    print(undistorted_laserline[i].shape)
-#                    ud = np.vstack((ud, undistorted_laserline[i])).resize(ud.shape[0], 2)
-#                print(ud.shape)
-#                print(np.array(undistorted_laserline, np.float32))
-                
-                
-
-                
-                        
-#                print(perspective_transformed_laserline)
-#                print(undistorted_laserline)
-#                for l in self._laserline_in_planes:
-#                    udp = self._undistort_points(l)
-#                    undistorted_laserline.append()
-                
-                ## get xyz for all laserline points using the homography matrices
-                ## and the calibrated plane heights
-
-                                
-                
+                print('Point on laser plane')
+                print(self._mean)
+                self._save_calibration()
             
             ## change _state
             if self._state is not State.LASERLINE:
                 self._state += 1
-#            print(self._homography_matrices)
         
         elif event == cv2.EVENT_MBUTTONDOWN:
             # # Restart calibration procedure
@@ -293,7 +262,6 @@ class Calibrator(object):
         self._displayed_image = img
         self._update()
             
-            
     def _undistort_points(self, points):
         ''' 
         Wrapper method for the opencv undistortPoints method. 
@@ -301,7 +269,6 @@ class Calibrator(object):
         calibration matrices.
         '''
         length = len(points)
-        
         # Create temp array
         temp = np.zeros((length,1,2), dtype=np.float32)
         # Copy scanline into temp array
@@ -315,9 +282,9 @@ class Calibrator(object):
         ud_resize.resize((length,2))
         return ud, ud_resize
         
-        
     def _perspective_transform(self, laserline, homography):
-        pt = cv2.perspectiveTransform(laserline.astype(np.float64), homography).reshape(-1,2)
+        pt = cv2.perspectiveTransform(laserline.astype(np.float64), 
+                                      homography).reshape(-1,2)
         return pt
     
     def _fit_ellipse(self, roi):
@@ -327,10 +294,8 @@ class Calibrator(object):
         of interest with subpixel accuracy
         '''
         temp = roi.copy()
-        
         if len(temp.shape) == 3:
             temp = cv2.cvtColor(temp, cv2.COLOR_BGR2GRAY)
-            
         contours, hierarchy = cv2.findContours(temp, cv2.RETR_LIST, 
                                                cv2.CHAIN_APPROX_SIMPLE)
         for contour in contours:
@@ -343,12 +308,9 @@ class Calibrator(object):
         center = ellipse[0]
         ## Draw center
         cv2.circle(roi, (int(center[0]), int(center[1])), 2, (0, 255, 0), -1)
-        
         temp = cv2.resize(roi, dsize=(roi.shape[0] * 10, roi.shape[1] * 10))
-        
-        cv2.imshow('roi', temp)
-        return center
-    
+#        cv2.imshow('roi', temp)
+        return center  
         
     def _threshold(self, *arg, **kw):
         ''' 
@@ -401,23 +363,20 @@ class Calibrator(object):
         y0 = np.mean(y)
         z0 = np.mean(z)
         print('mean')
-        mean = np.array([x0, y0, z0])
-        print(mean)
-        u,s,vh = np.linalg.linalg.svd(coords - mean)
+        self._mean = np.array([x0, y0, z0])
+        u,s,vh = np.linalg.linalg.svd(coords - self._mean)
         v = vh.conj().transpose()
-        print(v)
-        self._laserplane_eq = v[:,-1] 
-        
+        print('Laser plane equation:')
+        self._laserplane_eq = v[:,-1]
         
     def _get_laserline_object_coords_in_camera(self, coords):
         ptp_laserline_3d_in_camera = []
         for p_in_object in coords:
-            p_in_camera = self._tvec + np.dot(self._rmat, p_in_object.reshape(3,1))
+            p_in_camera = self._tvec + np.dot(self._rmat,
+                                              p_in_object.reshape(3,1))
             ptp_laserline_3d_in_camera.append(p_in_camera.reshape(3))
-        self._ptp_laserline_3d_in_camera = np.array(ptp_laserline_3d_in_camera, dtype=np.float32)
-            
-        
-
+        self._ptp_laserline_3d_in_camera = np.array(ptp_laserline_3d_in_camera,
+                                                    dtype=np.float32)     
 
     def _calibrate(self):
         ''' 
@@ -427,6 +386,13 @@ class Calibrator(object):
         '''
         pass
               
+    def _save_calibration(self):
+        np.savetxt('laser_plane.txt', self._laserplane_eq)
+        np.savetxt('point_on_laser_plane.txt', self._mean)
+        np.savetxt('laserline_2d.txt', self._laserline_2d)
+        np.savetxt('laserline_3d_in_object.txt', self._ptp_laserline_3d_in_object)
+        np.save('c2w_rotmatrix.npy', self._rmat)
+        np.save('c2w_transvector.npy', self._tvec)
         
     def _update(self, *arg, **kw):
         ''' 
@@ -443,19 +409,7 @@ class Calibrator(object):
     def _nothing(self, *arg, **kw):
         """Convenience method"""
         pass
-           
-        
-        
-
-
-        
-        
-        
-        
-        
-        
-        
-        
+             
         
 if __name__ == '__main__':
     
