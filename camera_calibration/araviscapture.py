@@ -2,8 +2,11 @@ from aravis  import Camera
 from camera_calibrator import OpenCVCalibrator
 
 class AravisCapture():
-    def __init__(self, name):
-        self.cam = Camera(name)
+    def __init__(self, name=None):
+        if type(name) == Camera:
+            self.cam = cam
+        else:
+            self.cam = Camera(name)
         x, y, width, height = self.cam.get_region()
         print("Camera model: ", self.cam.get_model_name())
         print("Vendor Name: ", self.cam.get_vendor_name())
@@ -12,13 +15,6 @@ class AravisCapture():
         sensor =  self.cam.get_sensor_size() 
         print("Sensor size: ", self.cam.get_sensor_size()) 
         print("Frame rate: ", self.cam.get_frame_rate())
-        print("PacketSize: ", self.cam.get_integer_feature("GevSCPSPacketSize"))
-        self.cam.set_integer_feature("AoiHeight", 2048)
-        self.cam.set_frame_rate(20)
-        self.cam.set_string_feature("CameraMode", "Image")
-        self.cam.set_string_feature("PixelFormat", "Mono8")
-        self.cam.set_integer_feature("GevSCPSPacketSize", 1500)
-        self.cam.setup_stream(10)
         self.cam.start_acquisition_continuous()
         print "camera started"
         self.counter = 0
