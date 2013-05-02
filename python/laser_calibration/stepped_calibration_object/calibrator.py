@@ -413,11 +413,11 @@ class Calibrator(object):
         
 if __name__ == '__main__':
     
-    cm = np.load('cm.npy')
-    dc  = np.load('dc.npy')
+    cm = np.load('2013-04-29/cm.npy')
+    dc  = np.load('2013-04-29/dc.npy')
 #    img = cv2.imread('justleds.tif', 0)
-    fullframe = np.load('fullframe_test5_40000.npy')
-    laserline = np.load('laserline_test5_250.npy')
+    fullframe = np.load('2013-04-29/frame-full.npy')
+    laserline = np.load('2013-04-29/frame-cog.npy')
 #    img = cv2.bitwise_not(img)
     
     lc = Calibrator(fullframe, laserline, camera_matrix=cm, dist_coeffs=dc)        

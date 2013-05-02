@@ -1,4 +1,5 @@
 import sys
+import time
 
 import cv2
 import cv2.cv as cv
@@ -78,27 +79,28 @@ class CameraCalibration(object):
 class OpenCVCalibration(CameraCalibration):
     """ Calibration node with an OpenCV Gui """
 
-    def __init__(self, *args):
+    def __init__(self, capture, boards, output_dir="./", flags=0):
 
-        CameraCalibration.__init__(self, *args)
+        CameraCalibration.__init__(self, capture=capture, boards=boards, flags=flags)
         self.window_name = 'Camera calibration'
         self.font = cv.InitFont(cv.CV_FONT_HERSHEY_SIMPLEX, 0.2, 1, thickness=1)
         self.show_undistorted = False
         self.saved_calibration = False
+        self.output_dir = output_dir
 
     def waitkey(self):
         k = cv.WaitKey(6)
         if k in [536870939, 27, ord('q')]:
             sys.exit()
-        elif k in [536871011, ord('c')]:
+        elif k in [536871011, ord('c'), 1048675]:
             if self.calibrator.goodenough:
                 print('Calibrating camera')
                 self.calibrator.do_calibration()
+                self.save_calib()
             else:
                 print('Not enough good samples')
-        elif k in [536871027, ord('s')]:
+        elif k in [536871027, ord('s'), 1048691]:
             if self.calibrator.calibrated and not self.saved_calibration:
-                print('Saving calibration')
                 self.calibrator.do_save()
                 self.saved_calibration = True
             else:
@@ -108,7 +110,15 @@ class OpenCVCalibration(CameraCalibration):
                 self.show_undistorted = True
             else:
                 self.show_undistorted = False
+        #print k
         return k
+
+    def save_calib(self):
+        print('Saving calibration to ', self.output_dir)
+        numpy.save(os.path.join(self.output_dir, 'dc.npy'), numpy.asarray(self.calibrator.distortion, numpy.float32))
+        numpy.save(os.path.join(self.output_dir, 'cm.npy'), numpy.asarray(self.calibrator.intrinsics, numpy.float32))
+        cv.Save(os.path.join(self.output_dir, 'camera_matrix.xml'), self.calibrator.intrinsics)
+        cv.Save(os.path.join(self.output_dir, 'distortion_coefficients.xml'), self.calibrator.distortion)
 
     def y(self, i):
         """Set up right-size images"""
@@ -140,7 +150,7 @@ class OpenCVCalibration(CameraCalibration):
                             (int(width -100  + hi * 100), self.y(i) + 20),
                             color, 4)
                     if self.calibrator.goodenough:     
-                        text_cal = 'Press \'c\' to calibrate camera'
+                        text_cal = 'Press \'c\' to calibrate camera and save calibration'
                         (w,_),_ = cv.GetTextSize(text_cal, self.font)
                         cv.PutText(display, text_cal, 
                                (width - w - 10, height - 10), self.font, (0,255,0))
@@ -165,7 +175,7 @@ class OpenCVCalibration(CameraCalibration):
             cv.PutText(display, text_calibrated, 
                        (10, h + 10), self.font, (0,255,0)) 
             if not self.saved_calibration:
-                text_save = 'Press \'s\' to save calibration'
+                text_save = 'Press \'s\' to save calibration to current dir'
                 (w, h),_ = cv.GetTextSize(text_save, self.font)
                 cv.PutText(display, text_save, 
                        (width - w - 10, height - 10), self.font, (0,255,0))
@@ -231,8 +241,12 @@ class OpenCVCalibration(CameraCalibration):
 
 if __name__ == '__main__':
     capture = cv2.VideoCapture(0)
-#    capture = GigECapture()
+    #    capture = GigECapture()
     #capture = ATC4Capture()
+    capture = AravisCapture()
     boards = []
     boards.append(ChessboardInfo(8,6,0.0245))
     calibrator = OpenCVCalibration(capture, boards)
+    while True:
+        time.sleep(1)
+            
