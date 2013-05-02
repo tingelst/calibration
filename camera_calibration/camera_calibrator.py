@@ -203,47 +203,11 @@ class OpenCVCalibration(CameraCalibration):
         cv.ShowImage(self.window_name, im)
         k = self.waitkey()
 
-#class ATC4Capture(threading.Thread):
-#    def __init__(self):
-#
-#        # Socket
-#        self.host = "169.254.208.224"
-#        self.port = 9999
-#        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-#        self.sock.connect((self.host, self.port))
-#
-#    def read(self):
-#        recv = ""
-#        self.sock.send("s")  # s = start
-#        while(len(recv) < 2048*1088):
-#            recv += self.sock.recv(8192)
-#        frame = np.frombuffer(recv, np.uint8)
-#        frame.resize(1088, 2048)
-#        return True, frame
-
-#class GigECapture(threading.Thread):
-#    def __init__(self):
-#        self.cam = None
-#        self.pv = pvlib.PvLib()
-#        cams = self.pv.getCameras()
-#        if not cams:
-#            print('Error getting camera list')
-#        else:
-#            self.cam = cams[0]
-#            self.cam.startCaptureTrigger()
-#
-#    def read(self):
-#        frame = self.cam.getNumpyArray()
-#        return True, frame
-
-
-
 if __name__ == '__main__':
     capture = cv2.VideoCapture(0)
-    #    capture = GigECapture()
+    #capture = GigECapture()
     #capture = ATC4Capture()
-    capture = AravisCapture()
+    #capture = AravisCapture()
     boards = []
     boards.append(ChessboardInfo(8,6,0.0245))
     calibrator = OpenCVCalibration(capture, boards)

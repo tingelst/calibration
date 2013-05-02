@@ -1,11 +1,9 @@
-import aravis 
+from aravis  import Camera
 from camera_calibrator import OpenCVCalibrator
 
 class AravisCapture():
-    def __init__(self):
-        ar = aravis.Aravis()
-        #self.cam = ar.get_camera("Prosilica-02-2130A-06106")
-        self.cam = ar.get_camera("AT-Automation Technology GmbH-20805103")
+    def __init__(self, name):
+        self.cam = Camera(name)
         x, y, width, height = self.cam.get_region()
         print("Camera model: ", self.cam.get_model_name())
         print("Vendor Name: ", self.cam.get_vendor_name())
@@ -28,23 +26,19 @@ class AravisCapture():
     def read(self):
         self.counter += 1
         print "trying to get frame: ", self.counter
-        frame = None
-        while frame == None:
-            frame = self.cam.try_get_frame()
-            time.sleep(0.001)
-        print frame
+        frame = self.cam.get_frame(wait=True)
         return True, frame
-        #return True, cv.fromarray(frame)
 
     def cleanup(self):
         self.cam.stop_acquisition()
-        self.cam.cleanup()
+        self.cam.shutdown()
 
 
 
 if __name__ == '__main__':
     try:
-        capture = AravisCapture()
+        #capture = AravisCapture("Prosilica-02-2130A-06106")
+        capture = AravisCapture("AT-Automation Technology GmbH-20805103")
         boards = []
         output_dir = datetime.datetime.now().strftime("%Y-%m-%d") + "_" + capture.cam.name
         boards.append(ChessboardInfo(8,6,0.0245))
