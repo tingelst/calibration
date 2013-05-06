@@ -2,6 +2,7 @@
 """
 @author: Lars, Olivier
 """
+import time
 
 import matplotlib as mpl
 from mpl_toolkits.mplot3d import Axes3D
@@ -22,8 +23,6 @@ class Restore(object):
     
     def restore_old(self, line):
         ## resize array to get into correct shape for cv2.undistortPoints
-        print line
-        print line.shape
         line = line.copy()
         nb = line.shape[0]
         line.resize(nb, 1, 2)
@@ -57,9 +56,64 @@ class Restore(object):
             p3d_array.append(p3d)
             
             
-        self.p3d_array = np.array(p3d_array)
+        p3d_array = np.array(p3d_array)
         
-        return self.p3d_array
+        return p3d_array
+
+
+
+    
+    def undistort(self, line):
+        ## resize array to get into correct shape for cv2.undistortPoints
+        line = line.copy()
+        nb = line.shape[0]
+        line.resize(nb, 1, 2)
+
+        ## undistort and normalize
+        ud = cv2.undistortPoints(line, self._cm, self._dc)
+        ud.shape = (nb, 2)
+        return ud
+
+    def transform(self, line):
+        t1 = time.time()
+        ud_h = np.hstack((line, np.ones((line.shape[0], 1))))
+        
+        # http://en.wikipedia.org/wiki/Line-plane_intersection        
+        
+        w2c_rmat = self._c2w_rmat.T
+        p3d_array = []
+        t2 = time.time()
+        for udp in ud_h:
+            a1 = time.time()
+            pw = np.dot(w2c_rmat, udp.reshape(3,1) - self._c2w_tvec)
+            l0 = np.dot(w2c_rmat, - self._c2w_tvec)
+            l0 = l0.reshape(3)
+            l = pw.reshape(3) - l0.reshape(3)
+            a2 = time.time()
+            ll = np.linalg.norm(l)
+            if ll != 0:
+                l /= ll
+                
+            n = self._lplane.reshape(3)
+            p0 = self._lpoint.reshape(3)
+            l = l.reshape(3)
+           
+            a3 = time.time()
+            d1 = np.dot((p0 - l0), n)
+            d2 = np.dot(l.reshape(3), n)
+            
+            a4 = time.time()
+            p3d = (d1/d2)*l + l0 
+            p3d_array.append(p3d)
+            
+        print(": {}s,  {}s,  {}s".format(a2-a1, a3-a2, a4-a3))
+        print("Expected inner loop time: ", (a4-a1) * 2048)
+            
+        p3d_array = np.array(p3d_array)
+        t3 = time.time()
+        print("init: {}s, loop {}s".format(t2-t1, t3-t2 ))
+        
+        return p3d_array
 
     def _format(self, line):
         nb = len(line)
@@ -69,51 +123,24 @@ class Restore(object):
         line = line.reshape( nb, )
         x_range =  np.arange(0, nb, 1)
         line = np.vstack((x_range, line)).transpose()
-        print line
-        print line.shape
+        #print line
+        #print line.shape
         return line
 
     def restore(self, line):
         ## resize array to get into correct shape for cv2.undistortPoints
-        print line
+        t1 = time.time()
         line = self._format(line)
+        t2 = time.time()
+        line =  self.undistort(line)
+        t3 = time.time()
+        trans = self.transform(line)
+        t4 = time.time()
+        print("format: {}s, undistord {}s, transform {}s".format(t2-t1, t3-t2, t4-t3))
+        return trans 
 
-        return self.restore_old(line)
-        
-        line.resize(nb, 1, 2)
 
-        ## undistort and normalize
-        ud = cv2.undistortPoints(line, self._cm, self._dc)
-        ud.shape = (nb, 2)
-        ud_h = np.hstack((ud, np.ones((nb, 1))))
         
-        # http://en.wikipedia.org/wiki/Line-plane_intersection        
-        
-        w2c_rmat = self._c2w_rmat.T
-        p3d_array = []
-        for udp in ud_h:
-            pw = np.dot(w2c_rmat, udp.reshape(3,1) - self._c2w_tvec)
-            l0 = np.dot(w2c_rmat, - self._c2w_tvec)
-            l0 = l0.reshape(3)
-            l = pw.reshape(3) - l0.reshape(3)
-            ll = np.linalg.norm(l)
-            if ll != 0:
-                l /= ll
-                
-            n = self._lplane.reshape(3)
-            p0 = self._lpoint.reshape(3)
-            l = l.reshape(3)
-            
-            d1 = np.dot((p0 - l0), n)
-            d2 = np.dot(l.reshape(3), n)
-            
-            p3d = (d1/d2)*l + l0 
-            p3d_array.append(p3d)
-            
-            
-        self.p3d_array = np.array(p3d_array)
-        
-        return self.p3d_array
         
     def plot3d(self, scan):
         fig = plt.figure()
