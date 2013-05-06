@@ -16,10 +16,16 @@ class Restore(object):
     def __init__(self, cm, dc, c2w_rmat, c2w_tvec, lplane, lpoint):
         self._cm = cm
         self._dc = dc
-        self._c2w_rmat = c2w_rmat
+        self._w2c_rmat = c2w_rmat.T
         self._c2w_tvec = c2w_tvec
-        self._lplane = lplane
-        self._lpoint = lpoint        
+        self._lplane = lplane.reshape(3)
+        self._lpoint = lpoint.reshape(3)
+
+        self._l0 = np.dot(self._w2c_rmat, - self._c2w_tvec)
+        self._l0 = self._l0.reshape(3)
+        self._d1 = np.dot((self._lpoint - self._l0), self._lplane)
+
+
     
     def restore_old(self, line):
         ## resize array to get into correct shape for cv2.undistortPoints
@@ -72,21 +78,20 @@ class Restore(object):
         ## undistort and normalize
         ud = cv2.undistortPoints(line, self._cm, self._dc)
         ud.shape = (nb, 2)
+        ud = np.hstack((ud, np.ones((nb, 1))))
         return ud
 
     def transform(self, line):
         t1 = time.time()
-        ud_h = np.hstack((line, np.ones((line.shape[0], 1))))
         
         # http://en.wikipedia.org/wiki/Line-plane_intersection        
         
-        w2c_rmat = self._c2w_rmat.T
         p3d_array = []
         t2 = time.time()
-        for udp in ud_h:
+        for udp in line:
             a1 = time.time()
-            pw = np.dot(w2c_rmat, udp.reshape(3,1) - self._c2w_tvec)
-            l0 = np.dot(w2c_rmat, - self._c2w_tvec)
+            pw = np.dot(self._w2c_rmat, udp.reshape(3,1) - self._c2w_tvec)
+            l0 = np.dot(self._w2c_rmat, - self._c2w_tvec)
             l0 = l0.reshape(3)
             l = pw.reshape(3) - l0.reshape(3)
             a2 = time.time()
@@ -94,8 +99,8 @@ class Restore(object):
             if ll != 0:
                 l /= ll
                 
-            n = self._lplane.reshape(3)
-            p0 = self._lpoint.reshape(3)
+            n = self._lplane
+            p0 = self._lpoint
             l = l.reshape(3)
            
             a3 = time.time()
@@ -114,6 +119,30 @@ class Restore(object):
         print("init: {}s, loop {}s".format(t2-t1, t3-t2 ))
         
         return p3d_array
+
+
+    def transform_op(self, line):
+        p3d_array = []
+        for udp in line:
+
+            #from IPython.frontend.terminal.embed import InteractiveShellEmbed
+            #ipshell = InteractiveShellEmbed()
+            #ipshell(local_ns=locals())
+            
+            pw = np.dot(self._w2c_rmat, udp.reshape(3,1) - self._c2w_tvec)
+            l = pw.reshape(3) - self._l0
+            norm = np.linalg.norm(l)
+            if norm != 0:
+                l /= norm
+            d2 = np.dot(l, self._lplane)
+            p3d = (self._d1 / d2) * l + self._lpoint 
+            p3d_array.append(p3d)
+            
+        p3d_array = np.array(p3d_array)
+        return p3d_array
+
+
+
 
     def _format(self, line):
         nb = len(line)
@@ -135,6 +164,18 @@ class Restore(object):
         line =  self.undistort(line)
         t3 = time.time()
         trans = self.transform(line)
+        t4 = time.time()
+        print("format: {}s, undistord {}s, transform {}s".format(t2-t1, t3-t2, t4-t3))
+        return trans 
+
+    def restore_op(self, line):
+        ## resize array to get into correct shape for cv2.undistortPoints
+        t1 = time.time()
+        line = self._format(line)
+        t2 = time.time()
+        line =  self.undistort(line)
+        t3 = time.time()
+        trans = self.transform_op(line)
         t4 = time.time()
         print("format: {}s, undistord {}s, transform {}s".format(t2-t1, t3-t2, t4-t3))
         return trans 
