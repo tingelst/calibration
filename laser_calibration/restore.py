@@ -20,15 +20,72 @@ class Restore(object):
         self._lplane = lplane
         self._lpoint = lpoint        
     
-    def restore(self, line):
+    def restore_old(self, line):
         ## resize array to get into correct shape for cv2.undistortPoints
+        print line
+        print line.shape
         line = line.copy()
-        line.resize(line.shape[0], 1, 2)
+        nb = line.shape[0]
+        line.resize(nb, 1, 2)
 
         ## undistort and normalize
         ud = cv2.undistortPoints(line, self._cm, self._dc)
-        ud.resize(line.shape[0], 2)
-        ud_h = np.hstack((ud, np.ones((ud.shape[0], 1))))
+        ud.shape = (nb, 2)
+        ud_h = np.hstack((ud, np.ones((nb, 1))))
+        
+        # http://en.wikipedia.org/wiki/Line-plane_intersection        
+        
+        w2c_rmat = self._c2w_rmat.T
+        p3d_array = []
+        for udp in ud_h:
+            pw = np.dot(w2c_rmat, udp.reshape(3,1) - self._c2w_tvec)
+            l0 = np.dot(w2c_rmat, - self._c2w_tvec)
+            l0 = l0.reshape(3)
+            l = pw.reshape(3) - l0.reshape(3)
+            ll = np.linalg.norm(l)
+            if ll != 0:
+                l /= ll
+                
+            n = self._lplane.reshape(3)
+            p0 = self._lpoint.reshape(3)
+            l = l.reshape(3)
+            
+            d1 = np.dot((p0 - l0), n)
+            d2 = np.dot(l.reshape(3), n)
+            
+            p3d = (d1/d2)*l + l0 
+            p3d_array.append(p3d)
+            
+            
+        self.p3d_array = np.array(p3d_array)
+        
+        return self.p3d_array
+
+    def _format(self, line):
+        nb = len(line)
+        subpixel = 5
+        line = line.copy()
+        line = line.astype(np.float64)  / 2**subpixel
+        line = line.reshape( nb, )
+        x_range =  np.arange(0, nb, 1)
+        line = np.vstack((x_range, line)).transpose()
+        print line
+        print line.shape
+        return line
+
+    def restore(self, line):
+        ## resize array to get into correct shape for cv2.undistortPoints
+        print line
+        line = self._format(line)
+
+        return self.restore_old(line)
+        
+        line.resize(nb, 1, 2)
+
+        ## undistort and normalize
+        ud = cv2.undistortPoints(line, self._cm, self._dc)
+        ud.shape = (nb, 2)
+        ud_h = np.hstack((ud, np.ones((nb, 1))))
         
         # http://en.wikipedia.org/wiki/Line-plane_intersection        
         
@@ -58,9 +115,20 @@ class Restore(object):
         
         return self.p3d_array
         
-        
-    def plot3d(self, p3d1, p3d2=None):
-#        p3d = self.intersect_with_laser_plane()
+    def plot3d(self, scan):
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+        mpl.rcParams['legend.fontsize'] = 10
+        for p3d in scan:
+            xs, ys, zs = np.hsplit(p3d, 3)
+            xs = xs.reshape(xs.shape[0])
+            ys = ys.reshape(ys.shape[0])
+            zs = zs.reshape(ys.shape[0])
+            ax.plot(xs, ys, zs)
+        plt.show()
+
+       
+    def plot3d_line(self, p3d1, p3d2=None):
         xs, ys, zs = np.hsplit(p3d1, 3)
         xs = xs.reshape(xs.shape[0])
         ys = ys.reshape(ys.shape[0])

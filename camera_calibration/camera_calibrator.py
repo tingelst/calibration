@@ -1,6 +1,8 @@
 import sys
 import time
 
+import numpy as np
+
 import cv2
 import cv2.cv as cv
 
@@ -115,8 +117,8 @@ class OpenCVCalibration(CameraCalibration):
 
     def save_calib(self):
         print('Saving calibration to ', self.output_dir)
-        numpy.save(os.path.join(self.output_dir, 'dc.npy'), numpy.asarray(self.calibrator.distortion, numpy.float32))
-        numpy.save(os.path.join(self.output_dir, 'cm.npy'), numpy.asarray(self.calibrator.intrinsics, numpy.float32))
+        np.save(os.path.join(self.output_dir, 'dc.npy'), np.asarray(self.calibrator.distortion, np.float32))
+        np.save(os.path.join(self.output_dir, 'cm.npy'), np.asarray(self.calibrator.intrinsics, np.float32))
         cv.Save(os.path.join(self.output_dir, 'camera_matrix.xml'), self.calibrator.intrinsics)
         cv.Save(os.path.join(self.output_dir, 'distortion_coefficients.xml'), self.calibrator.distortion)
 

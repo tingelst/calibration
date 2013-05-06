@@ -1,10 +1,10 @@
 from aravis  import Camera
-from camera_calibrator import OpenCVCalibrator
+from .camera_calibrator import OpenCVCalibration
 
 class AravisCapture():
     def __init__(self, name=None):
         if type(name) == Camera:
-            self.cam = cam
+            self.cam = name
         else:
             self.cam = Camera(name)
         x, y, width, height = self.cam.get_region()
