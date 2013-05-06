@@ -21,7 +21,7 @@ class Restore(object):
         self._lplane = lplane.reshape(3)
         self._lpoint = lpoint.reshape(3)
 
-        self._l0 = np.dot(self._w2c_rmat, - self._c2w_tvec)
+        self._l0 = np.dot(self._w2c_rmat, -self._c2w_tvec)
         self._l0 = self._l0.reshape(3)
         self._d1 = np.dot((self._lpoint - self._l0), self._lplane)
 
@@ -44,15 +44,15 @@ class Restore(object):
         p3d_array = []
         for udp in ud_h:
             pw = np.dot(w2c_rmat, udp.reshape(3,1) - self._c2w_tvec)
-            l0 = np.dot(w2c_rmat, - self._c2w_tvec)
+            l0 = np.dot(w2c_rmat, -self._c2w_tvec)
             l0 = l0.reshape(3)
             l = pw.reshape(3) - l0.reshape(3)
             ll = np.linalg.norm(l)
             if ll != 0:
                 l /= ll
                 
-            n = self._lplane.reshape(3)
-            p0 = self._lpoint.reshape(3)
+            n = self._lplane
+            p0 = self._lpoint
             l = l.reshape(3)
             
             d1 = np.dot((p0 - l0), n)
@@ -124,18 +124,13 @@ class Restore(object):
     def transform_op(self, line):
         p3d_array = []
         for udp in line:
-
-            #from IPython.frontend.terminal.embed import InteractiveShellEmbed
-            #ipshell = InteractiveShellEmbed()
-            #ipshell(local_ns=locals())
-            
             pw = np.dot(self._w2c_rmat, udp.reshape(3,1) - self._c2w_tvec)
             l = pw.reshape(3) - self._l0
             norm = np.linalg.norm(l)
             if norm != 0:
                 l /= norm
             d2 = np.dot(l, self._lplane)
-            p3d = (self._d1 / d2) * l + self._lpoint 
+            p3d = (self._d1 / d2) * l + self._l0 
             p3d_array.append(p3d)
             
         p3d_array = np.array(p3d_array)
