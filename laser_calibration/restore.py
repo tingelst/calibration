@@ -25,6 +25,9 @@ class Restore(object):
         self._l0 = self._l0.reshape(3)
         self._d1 = np.dot((self._lpoint - self._l0), self._lplane)
 
+        #from IPython.frontend.terminal.embed import InteractiveShellEmbed
+        #ipshell = InteractiveShellEmbed()
+        #ipshell(local_ns=locals())
 
     
     def restore_old(self, line):
@@ -126,6 +129,7 @@ class Restore(object):
         for udp in line:
             pw = np.dot(self._w2c_rmat, udp.reshape(3,1) - self._c2w_tvec)
             l = pw.reshape(3) - self._l0
+            #print("l", l.shape, l)
             norm = np.linalg.norm(l)
             if norm != 0:
                 l /= norm
@@ -135,6 +139,24 @@ class Restore(object):
             
         p3d_array = np.array(p3d_array)
         return p3d_array
+
+
+    def _v(self, udp):
+        #print "UDP: ",  udp 
+        #udp = np.array([x,y,z])
+        pw = np.dot(self._w2c_rmat, udp.reshape(3,1) - self._c2w_tvec)
+        l = pw.reshape(3) - self._l0
+        norm = np.linalg.norm(l)
+        if norm != 0:
+            l /= norm
+        d2 = np.dot(l, self._lplane)
+        return (self._d1 / d2) * l + self._l0 
+
+    def transform_op_v(self, line):
+        #print line[0]
+        return np.apply_along_axis(self._v, 1, line)
+        #func = np.vectorize(self._v, excluded="udp")
+        #return func(udp=line)
 
 
 
@@ -149,6 +171,16 @@ class Restore(object):
         line = np.vstack((x_range, line)).transpose()
         #print line
         #print line.shape
+        return line
+
+    def _format_op(self, line):
+        nb = len(line)
+        subpixel = 5
+        #line = line.copy()
+        line /= 2**subpixel
+        line = line.reshape( nb, )
+        x_range =  np.arange(0, nb, 1)
+        line = np.vstack((x_range, line)).transpose()
         return line
 
     def restore(self, line):
@@ -174,9 +206,7 @@ class Restore(object):
         t4 = time.time()
         print("format: {}s, undistord {}s, transform {}s".format(t2-t1, t3-t2, t4-t3))
         return trans 
-
-
-        
+      
         
     def plot3d(self, scan):
         fig = plt.figure()
@@ -217,7 +247,46 @@ class Restore(object):
     #def show(self):
         #plt.show()
         
+class Restore_op(Restore):            
+    def __init__(self, *args):
+        Restore.__init__(self, *args)
+        self._c2w_tvec = self._c2w_tvec.reshape(3)
+
+    def transform(self, line):
+        p3dlist = []
+        for udp in line:
+            pw = np.dot(self._w2c_rmat, udp - self._c2w_tvec)
+            #from IPython.frontend.terminal.embed import InteractiveShellEmbed
+            #ipshell = InteractiveShellEmbed()
+            #ipshell(local_ns=locals())
+            l = pw - self._l0
+            #print("l", l.shape, l)
+            norm = np.linalg.norm(l)
+            if norm != 0:
+                l /= norm
+            d2 = np.dot(l, self._lplane)
+            p3d = (self._d1/d2) * l   + self._l0 
+            p3dlist.append(p3d)
             
+        p3d_array = np.array(p3dlist)
+        return p3d_array
+
+
+    def restore(self, line):
+        ## resize array to get into correct shape for cv2.undistortPoints
+        t1 = time.time()
+        line = self._format_op(line)
+        t2 = time.time()
+        line =  self.undistort(line)
+        t3 = time.time()
+        trans = self.transform(line)
+        t4 = time.time()
+        print("format: {}s, undistord {}s, transform {}s".format(t2-t1, t3-t2, t4-t3))
+        return trans 
+
+
+  
+
             
         
         
