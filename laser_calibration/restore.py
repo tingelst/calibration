@@ -211,15 +211,17 @@ class Restore(object):
       
         
     def plot3d(self, scan):
-        fig = plt.figure()
+        fig = plt.figure(0)
         ax = fig.gca(projection='3d')
         mpl.rcParams['legend.fontsize'] = 10
+        count = 0
         for p3d in scan:
+            count += 1
             xs, ys, zs = np.hsplit(p3d, 3)
             xs = xs.reshape(xs.shape[0])
             ys = ys.reshape(ys.shape[0])
             zs = zs.reshape(ys.shape[0])
-            ax.plot(xs, ys, zs)
+            ax.plot(xs, ys, zs, label=str(count))
         plt.show()
 
        
@@ -231,7 +233,7 @@ class Restore(object):
 
         mpl.rcParams['legend.fontsize'] = 10
 
-        fig = plt.figure()
+        fig = plt.figure(0)
         ax = fig.gca(projection='3d')
         ax.plot(xs, ys, zs, label='3d plot of laserline')
         if p3d2 is not None:
