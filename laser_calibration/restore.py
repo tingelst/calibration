@@ -4,6 +4,8 @@
 """
 import time
 
+import cython
+
 import matplotlib as mpl
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
@@ -43,7 +45,7 @@ class Restore(object):
         
         # http://en.wikipedia.org/wiki/Line-plane_intersection        
         
-        w2c_rmat = self._c2w_rmat.T
+        w2c_rmat = self._w2c_rmat
         p3d_array = []
         for udp in ud_h:
             pw = np.dot(w2c_rmat, udp.reshape(3,1) - self._c2w_tvec)
@@ -252,27 +254,77 @@ class Restore_op(Restore):
         Restore.__init__(self, *args)
         self._c2w_tvec = self._c2w_tvec.reshape(3)
 
+    def transform_c(self, line):
+        return cython.inline(self.transform_cython, w2c=self._w2c_rmat, c2w=self._c2w_tvec, lplane=self._lplane, l0=self._l0, d1=self._d1)
+
+    def transform_c2(self, line):
+        return cython.inline("""
+p3dlist = []
+for udp in line:
+    l = np.dot(w2c, udp - c2w) - l0
+    norm = np.linalg.norm(l)
+    if norm != 0:
+        l /= norm
+    d2 = np.dot(l, lplane)
+    p3d = (d1/d2) * l   + l0 
+    p3dlist.append(p3d)
+return np.array(p3dlist)""", w2c=self._w2c_rmat, c2w=self._c2w_tvec, lplane=self._lplane, l0=self._l0, d1=self._d1)
+
+
     def transform(self, line):
         p3dlist = []
         for udp in line:
-            pw = np.dot(self._w2c_rmat, udp - self._c2w_tvec)
-            #from IPython.frontend.terminal.embed import InteractiveShellEmbed
-            #ipshell = InteractiveShellEmbed()
-            #ipshell(local_ns=locals())
-            l = pw - self._l0
-            #print("l", l.shape, l)
+            l = np.dot(self._w2c_rmat, udp - self._c2w_tvec) - self._l0
             norm = np.linalg.norm(l)
             if norm != 0:
                 l /= norm
             d2 = np.dot(l, self._lplane)
             p3d = (self._d1/d2) * l   + self._l0 
             p3dlist.append(p3d)
-            
-        p3d_array = np.array(p3dlist)
-        return p3d_array
+        return np.array(p3dlist)
+
+
+    def transform_cython(self, line, w2c, c2w, lplane, l0, d1):
+        p3dlist = []
+        for udp in line:
+            l = np.dot(w2c, udp - c2w) - l0
+            norm = np.linalg.norm(l)
+            if norm != 0:
+                l /= norm
+            d2 = np.dot(l, lplane)
+            p3d = (d1/d2) * l   + l0 
+            p3dlist.append(p3d)
+        return np.array(p3dlist)
+
+
+
+
+    def transform_test_numpy(self, line):
+        print "KK"
+        p3dlist = np.empty((len(line),3), dtype=np.float32)
+        for i in range(len(line)):
+            udp = line[i]
+            l = np.dot(self._w2c_rmat, udp - self._c2w_tvec) - self._l0
+            norm = np.linalg.norm(l)
+            if norm != 0:
+                l /= norm
+            d2 = np.dot(l, self._lplane)
+            p3d = (self._d1/d2) * l   + self._l0 
+            p3dlist[i] = p3d
+        return p3dlist
 
 
     def restore(self, line):
+        ## resize array to get into correct shape for cv2.undistortPoints
+        line = self._format_op(line)
+        line =  self.undistort(line)
+        trans = self.transform(line)
+        return trans 
+
+
+
+
+    def restore_time(self, line):
         ## resize array to get into correct shape for cv2.undistortPoints
         t1 = time.time()
         line = self._format_op(line)
@@ -283,6 +335,20 @@ class Restore_op(Restore):
         t4 = time.time()
         print("format: {}s, undistord {}s, transform {}s".format(t2-t1, t3-t2, t4-t3))
         return trans 
+
+
+    def restore_c(self, line):
+        ## resize array to get into correct shape for cv2.undistortPoints
+        t1 = time.time()
+        line = self._format_op(line)
+        t2 = time.time()
+        line =  self.undistort(line)
+        t3 = time.time()
+        trans = self.transform_c(line)
+        t4 = time.time()
+        print("format: {}s, undistord {}s, transform {}s".format(t2-t1, t3-t2, t4-t3))
+        return trans 
+
 
 
   
