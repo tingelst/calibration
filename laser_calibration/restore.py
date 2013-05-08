@@ -116,6 +116,7 @@ class Restore_original(object):
         p3d_array = np.array(p3d_array)
         t3 = time.time()
         print("init: {}s, loop {}s".format(t2-t1, t3-t2 ))
+        p3d_array /= 1000 #from mm to m
         
         return p3d_array
 
@@ -196,14 +197,18 @@ class Restore(object):
         self._l0 = self._l0.reshape(3)
         self._d1 = np.dot((self._lpoint - self._l0), self._lplane)
 
-    def format(self, line):
-        nb = len(line)
+    def format(self, line, step=1):
         subpixel = 5
-        line = line.copy()
         line = line.astype(np.float64)  / 2**subpixel
-        line = line.reshape( nb, )
-        x_range =  np.arange(0, nb, 1)
-        line = np.vstack((x_range, line)).transpose()
+        l = []
+        for i in np.arange(0, len(line), step):
+            l.append((i, line[i]))
+        line = np.array(l)
+        #print len(line)
+        #line = line.reshape( nb, )
+        #x_range =  np.arange(0, nb, step)
+        #print len(x_range)
+        #line = np.vstack((x_range, line)).transpose()
         #print line
         #print line.shape
         return line
@@ -218,11 +223,13 @@ class Restore(object):
             d2 = np.dot(l, self._lplane)
             p3d = (self._d1/d2) * l   + self._l0 
             p3dlist.append(p3d)
-        return np.array(p3dlist)
+        arr = np.array(p3dlist)
+        arr /= 1000 #from mm to m
+        return arr 
 
-    def restore(self, line):
+    def restore(self, line, step=1):
         ## resize array to get into correct shape for cv2.undistortPoints
-        line = self.format(line)
+        line = self.format(line, step)
         line =  self.undistort(line)
         trans = self.transform(line)
         return trans 
