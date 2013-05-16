@@ -231,6 +231,8 @@ class Restore(object):
         ## resize array to get into correct shape for cv2.undistortPoints
         line = self.format(line, step)
         line =  self.undistort(line)
+        #print line.shape
+        #line = line[::-1]
         trans = self.transform(line)
         return trans 
 
@@ -259,7 +261,7 @@ class Restore(object):
             xs = xs.reshape(xs.shape[0])
             ys = ys.reshape(ys.shape[0])
             zs = zs.reshape(ys.shape[0])
-            ax.plot(xs, ys, zs, label=str(count))
+            ax.scatter(xs, ys, zs, label=str(count), marker=".", s=2)
         plt.show()
 
        
@@ -284,6 +286,21 @@ class Restore(object):
         ax.legend()
         
         plt.show()
+
+    def save_point_cloud(self, scan, path='pc.ply'):
+        scan.shape = (scan.shape[0] * scan.shape[1] , scan.shape[2])
+        fc = open(path, 'wt')
+        fc.write('ply\n')
+        fc.write('format ascii 1.0\n')
+        fc.write('comment : laser scanner\n')
+        fc.write('element vertex %d\n' % len(scan))
+        fc.write('property float x\n')
+        fc.write('property float y\n')
+        fc.write('property float z\n')
+        fc.write('end_header\n')
+        np.savetxt(fc, scan, fmt='%+6.4f')
+        fc.close()
+        print('Point cloud saved')
 
 
 
