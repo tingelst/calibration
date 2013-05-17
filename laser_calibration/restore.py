@@ -186,23 +186,32 @@ class Restore_original(object):
         #plt.show()
         
 class Restore(object):            
-    def __init__(self, cm, dc, c2w_rmat, c2w_tvec, lplane, lpoint):
+    """
+    Restore point using a given calibration
+    cm: 
+    dc:
+    c2w_rmat: rotation matrix laser
+    c2w_tvec: vectore laser
+    lpoint: ?
+    subpixel: camera configuration parameter (subpixel resolution)
+    """
+    def __init__(self, cm, dc, c2w_rmat, c2w_tvec, lplane, lpoint, subpixel=5):
         self._cm = cm
         self._dc = dc
         self._w2c_rmat = c2w_rmat.T
         self._c2w_tvec = c2w_tvec.reshape(3)
         self._lplane = lplane.reshape(3)
         self._lpoint = lpoint.reshape(3)
+        self._subpixel = subpixel
         self._l0 = np.dot(self._w2c_rmat, -self._c2w_tvec)
         self._l0 = self._l0.reshape(3)
         self._d1 = np.dot((self._lpoint - self._l0), self._lplane)
 
     def format(self, line, step=1):
-        subpixel = 5
-        line = line.astype(np.float64)  / 2**subpixel
+        line = line.astype(np.float64)  / 2**self._subpixel
         l = []
         for i in np.arange(0, len(line), step):
-            l.append((i, line[i]))
+            l.append(( i, line[i]))
         line = np.array(l)
         #print len(line)
         #line = line.reshape( nb, )
@@ -231,8 +240,6 @@ class Restore(object):
         ## resize array to get into correct shape for cv2.undistortPoints
         line = self.format(line, step)
         line =  self.undistort(line)
-        #print line.shape
-        #line = line[::-1]
         trans = self.transform(line)
         return trans 
 
@@ -254,67 +261,38 @@ class Restore(object):
         fig = plt.figure(0)
         ax = fig.gca(projection='3d')
         mpl.rcParams['legend.fontsize'] = 10
-        count = 0
-        for p3d in scan:
-            count += 1
-            xs, ys, zs = np.hsplit(p3d, 3)
-            xs = xs.reshape(xs.shape[0])
-            ys = ys.reshape(ys.shape[0])
-            zs = zs.reshape(ys.shape[0])
-            ax.scatter(xs, ys, zs, label=str(count), marker=".", s=2)
+        scan.shape = (-1, 3)
+        xs, ys, zs = np.hsplit(scan, 3)
+        xs.reshape(-1)
+        ys.reshape(-1)
+        zs.reshape(-1)
+        ax.scatter(xs, ys, zs, marker=".", s=2)
         plt.show()
 
        
-    def plot3d_line(self, p3d1, p3d2=None):
+    def plot3d_line(self, p3d1):
         xs, ys, zs = np.hsplit(p3d1, 3)
         xs = xs.reshape(xs.shape[0])
         ys = ys.reshape(ys.shape[0])
         zs = zs.reshape(ys.shape[0])
-
         mpl.rcParams['legend.fontsize'] = 10
-
         fig = plt.figure(0)
         ax = fig.gca(projection='3d')
         ax.plot(xs, ys, zs, label='3d plot of laserline')
-        if p3d2 is not None:
-            xs2, ys2, zs2 = np.hsplit(p3d2, 3)
-            xs2 = xs2.reshape(xs2.shape[0])
-            ys2 = ys2.reshape(ys2.shape[0])
-            zs2 = zs2.reshape(zs2.shape[0])
-            ax.plot(xs2, ys2, zs2, label='3d plot of laserline #2')
-            
         ax.legend()
-        
         plt.show()
 
     def save_point_cloud(self, scan, path='pc.ply'):
-        scan.shape = (scan.shape[0] * scan.shape[1] , scan.shape[2])
-        fc = open(path, 'wt')
-        fc.write('ply\n')
-        fc.write('format ascii 1.0\n')
-        fc.write('comment : laser scanner\n')
-        fc.write('element vertex %d\n' % len(scan))
-        fc.write('property float x\n')
-        fc.write('property float y\n')
-        fc.write('property float z\n')
-        fc.write('end_header\n')
-        np.savetxt(fc, scan, fmt='%+6.4f')
-        fc.close()
-        print('Point cloud saved')
+        scan.shape = (-1, 3)
+        header = """ply
+format ascii 1.0
+comment : laser scanner
+element vertex %d
+property float x
+property float y
+property float z
+end_header""" % len(scan)
+        np.savetxt(path, scan, fmt='%+6.4f', header=header, comments="")
+        print('Saving point cloud to', path)
 
 
-
-  
-
-            
-        
-        
-        
-    
-
-
-
-    
-    
-    
-    
