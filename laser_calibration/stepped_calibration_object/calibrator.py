@@ -38,7 +38,7 @@ class Calibrator(object):
         
         ## OpenCV setup 
         self._win_name = 'Laser calibrator - Lars Tingelstad, IPK, NTNU'
-        self._window = cv2.namedWindow(self._win_name)
+        self._window = cv2.namedWindow(self._win_name, flags=0)
         ## trackbars
 #        cv2.createTrackbar('blur', self._win_name, 5, 20, 
 #                           self._median_blur)
