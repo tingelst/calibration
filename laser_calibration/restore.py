@@ -283,6 +283,7 @@ class Restore(object):
         plt.show()
 
     def save_point_cloud(self, scan, path='pc.ply'):
+        scan = scan[:,:,:3]
         scan.shape = (-1, 3)
         header = """ply
 format ascii 1.0
