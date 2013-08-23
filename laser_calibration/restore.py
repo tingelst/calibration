@@ -283,8 +283,16 @@ class Restore(object):
         plt.show()
 
     def save_point_cloud(self, scan, path='pc.ply'):
-        scan = scan[:,:,:3]
+        #from IPython import embed
+        #embed()
+        scan = scan[:,:,:3] # remove other data than position
         scan.shape = (-1, 3)
+        z = scan[:,2].clip(-0.5, 0.5) #clip values in Z
+        y = scan[:,1].clip(-1, 1) #clip values in Z
+        #y = scan[:,1]
+        x = scan[:,0].clip(-1, 1) #clip values in Z
+        #x = scan[:,0]
+        scan = np.array((x,y,z)).T
         header = """ply
 format ascii 1.0
 comment : laser scanner
