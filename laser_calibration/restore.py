@@ -282,6 +282,18 @@ class Restore(object):
         ax.legend()
         plt.show()
 
+    def mplot3d(self, scan, show=False):
+        from mayavi import mlab
+        fig = mlab.figure(0)
+        scan.shape = (-1 , 3)
+        xs, ys, zs = np.hsplit(scan, 3)
+        xs.reshape(-1)
+        ys.reshape(-1)
+        zs.reshape(-1)
+        mlab.points3d(xs, ys, zs, figure=fig, mode="point", mask_points=1 )
+        if show:
+            mlab.show()
+
     def save_point_cloud(self, scan, path='pc.ply'):
         #from IPython import embed
         #embed()
