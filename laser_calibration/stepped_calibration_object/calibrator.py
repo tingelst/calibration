@@ -3,7 +3,7 @@ Created on Dec 18, 2012
 
 @author: lars
 '''
-
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2
@@ -27,8 +27,10 @@ class Calibrator(object):
     Laser calibrator class
     '''
 
-    def __init__(self, fullframe, laserline=None, 
-                 camera_matrix=None, dist_coeffs=None):
+    def __init__(self, fullframe, subpixel, laserline=None, 
+                 camera_matrix=None, dist_coeffs=None, output_dir="./"):
+        self._subpixel = subpixel
+        self._output_dir = output_dir
         
         ## camera calibration matrices
         self._cm = camera_matrix
@@ -36,11 +38,11 @@ class Calibrator(object):
         
         ## OpenCV setup 
         self._win_name = 'Laser calibrator - Lars Tingelstad, IPK, NTNU'
-        self._window = cv2.namedWindow(self._win_name)
+        self._window = cv2.namedWindow(self._win_name, flags=0)
         ## trackbars
 #        cv2.createTrackbar('blur', self._win_name, 5, 20, 
 #                           self._median_blur)
-        cv2.createTrackbar('threshold', self._win_name, 100, 255, 
+        cv2.createTrackbar('threshold', self._win_name, 70, 255, 
                            self._threshold)
         cv2.createTrackbar('window', self._win_name, 30, 50, 
                            self._nothing)
@@ -52,7 +54,8 @@ class Calibrator(object):
         
         
         ## Laser line
-        self._laserline = laserline.astype(np.float64) / 2**6
+        self._laserline = laserline.astype(np.float64)  / 2**self._subpixel
+        self._laserline = self._laserline.reshape( 2048, )
         self._laserline_limits = []
         ## List of numpy arrays with the laserline in each plane
         self._laserline_in_planes = []
@@ -114,7 +117,8 @@ class Calibrator(object):
         ## Start 
         self._threshold()
         self._median_blur_trackbar()
-        cv2.waitKey()
+        while True:
+            self._wait_key()
         
     def _on_mouse(self, event, x, y, flags, param):
         x, y = np.int16([x, y])
@@ -300,7 +304,7 @@ class Calibrator(object):
                                                cv2.CHAIN_APPROX_SIMPLE)
         for contour in contours:
             ## Find the outer
-            if len(contour) > 40:
+            if len(contour) > 10:
                 ## Fit ellipse to contour
                 ellipse = cv2.fitEllipse(contour)
                 ## Draw ellipse
@@ -387,12 +391,12 @@ class Calibrator(object):
         pass
               
     def _save_calibration(self):
-        np.savetxt('laser_plane.txt', self._laserplane_eq)
-        np.savetxt('point_on_laser_plane.txt', self._mean)
-        np.savetxt('laserline_2d.txt', self._laserline_2d)
-        np.savetxt('laserline_3d_in_object.txt', self._ptp_laserline_3d_in_object)
-        np.save('c2w_rotmatrix.npy', self._rmat)
-        np.save('c2w_transvector.npy', self._tvec)
+        np.savetxt(os.path.join(self._output_dir, 'laser_plane.txt'), self._laserplane_eq)
+        np.savetxt(os.path.join(self._output_dir, 'point_on_laser_plane.txt'), self._mean)
+        np.savetxt(os.path.join(self._output_dir, 'laserline_2d.txt'), self._laserline_2d)
+        np.savetxt(os.path.join(self._output_dir, 'laserline_3d_in_object.txt'), self._ptp_laserline_3d_in_object)
+        np.save(os.path.join(self._output_dir, 'c2w_rotmatrix.npy'), self._rmat)
+        np.save(os.path.join(self._output_dir, 'c2w_transvector.npy'), self._tvec)
         
     def _update(self, *arg, **kw):
         ''' 
@@ -403,7 +407,8 @@ class Calibrator(object):
             
     def _wait_key(self):
         c = cv2.waitKey(30)
-        if c == 27:
+        c = c&255
+        if c in (113, 27):
             cv2.destroyAllWindows()
             
     def _nothing(self, *arg, **kw):
@@ -413,11 +418,12 @@ class Calibrator(object):
         
 if __name__ == '__main__':
     
-    cm = np.load('cm.npy')
-    dc  = np.load('dc.npy')
+    cm = np.load('2013-04-29/cm.npy')
+    dc  = np.load('2013-04-29/dc.npy')
 #    img = cv2.imread('justleds.tif', 0)
-    fullframe = np.load('fullframe_test5_40000.npy')
-    laserline = np.load('laserline_test5_250.npy')
+    fullframe = np.load('2013-04-29/frame-full.npy')
+    laserline = np.load('2013-04-29/frame-cog.npy')
+    
 #    img = cv2.bitwise_not(img)
     
     lc = Calibrator(fullframe, laserline, camera_matrix=cm, dist_coeffs=dc)        

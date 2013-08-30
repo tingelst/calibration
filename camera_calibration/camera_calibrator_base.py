@@ -244,8 +244,8 @@ class Calibrator:
         """
         Convert a message into a bgr8 OpenCV bgr8 *monochrome* image.
         """
-        temp = cv2.cvtColor(msg, cv2.COLOR_BGR2GRAY)
-        msg = temp        
+        #temp = cv2.cvtColor(msg, cv2.COLOR_BGR2GRAY)
+        #msg = temp        
         
         rgb = cv2.cvtColor(msg, cv2.COLOR_GRAY2BGR)
         rgb_cvmat = cv2.cv.fromarray(rgb)
